@@ -36,5 +36,11 @@
   "testHint": "A lock or “connection secure” message means setup worked. If a warning remains, recheck the Full Trust or CA certificate step.",
   "qrTitle": "Setting up another phone?",
   "qrDescription": "Connect it to the same local network and scan this code.",
-  "footer": "Keep the onboarding port private to your local network. You can stop this app when setup is finished."
+  "footer": "Keep the onboarding port private to your local network. You can stop this app when setup is finished.",
+  "regenerateTitle": "Generate a new server certificate",
+  "regenerateDescription": "This keeps the existing trusted CA, backs up the current server certificate and key, and creates a new certificate for this Home Assistant address.",
+  "regenerateConsent": "I understand that Home Assistant must be restarted after generation.",
+  "regenerateButton": "Generate new server certificate",
+  "regenerateWorking": "Generating…",
+  "regenerateError": "Generation failed:"
 }

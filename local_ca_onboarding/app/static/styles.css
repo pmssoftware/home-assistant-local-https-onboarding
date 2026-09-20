@@ -67,13 +67,18 @@ code { display: block; padding: 12px; border-radius: 10px; background: #edf2f5; 
 .consent { display: flex; gap: 12px; align-items: flex-start; margin: 4px 0 20px; cursor: pointer; }
 .consent input { width: 20px; height: 20px; flex: 0 0 auto; margin-top: 2px; accent-color: var(--brand-dark); }
 .primary, .secondary { display: inline-flex; justify-content: center; width: 100%; padding: 14px 18px; border-radius: 11px; text-decoration: none; font-weight: 800; transition: transform .12s ease, opacity .12s ease; }
+.button-reset { border: 0; cursor: pointer; font: inherit; font-weight: 800; }
+.button-reset:disabled { cursor: not-allowed; }
 .primary { background: var(--brand-dark); color: white; }
 .secondary { border: 2px solid var(--brand-dark); color: var(--brand-dark); }
 .primary:not(.disabled):hover, .secondary:hover { transform: translateY(-1px); }
 .primary.disabled { opacity: .42; cursor: not-allowed; }
 .success-card { border-color: #b8dfcf; }
 .qr-card { display: flex; align-items: center; justify-content: space-between; gap: 24px; }
-.qr-card img { flex: 0 0 auto; border: 10px solid white; border-radius: 10px; }
+.qr-card img { flex: 0 0 auto; padding: 10px; border-radius: 10px; background: white; }
+.regeneration-card { border-color: #e2b557; }
+.regeneration-actions { display: grid; gap: 14px; }
+.status { margin: 0; font-weight: 700; }
 .qr-card code { margin-top: 12px; }
 .hidden, [hidden] { display: none !important; }
 footer { padding: 18px 8px; color: var(--muted); text-align: center; font-size: .86rem; }

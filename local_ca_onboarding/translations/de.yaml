@@ -1,0 +1,24 @@
+configuration:
+  auto_generate_certificates:
+    name: Fehlende Zertifikate automatisch erzeugen
+    description: Wenn keine öffentliche Stamm-CA vorhanden ist, werden eine private CA und ein Home-Assistant-Serverzertifikat in /ssl erzeugt. Vorhandene Dateien werden nicht überschrieben.
+  allow_certificate_regeneration:
+    name: Manuelle Erneuerung des Serverzertifikats erlauben
+    description: Zeigt vorübergehend die geschützte Erneuerungsfunktion auf der Einrichtungsseite. Die vorhandene CA bleibt erhalten, damit eingerichtete Geräte weiterhin vertrauen.
+  ca_certificate_pem:
+    name: Öffentliches CA-Zertifikat überschreiben
+    description: Optionaler PEM-Text. Normalerweise leer lassen, da die App die öffentliche CA automatisch erkennt.
+  ca_certificate_file:
+    name: Dateiname des öffentlichen CA-Zertifikats
+    description: Optionaler Dateiname in /ssl. Normalerweise für die automatische Erkennung leer lassen.
+  home_assistant_host:
+    name: Home-Assistant-Adresse überschreiben
+    description: Optionale IP-Adresse oder optionaler Hostname. Normalerweise erkennt die App die Adresse automatisch.
+  home_assistant_https_port:
+    name: Home-Assistant-HTTPS-Port
+    description: Von Home Assistant verwendeter HTTPS-Port, normalerweise 8123.
+  onboarding_http_port:
+    name: Port der Einrichtungsseite
+    description: Host-Port der direkten HTTP-Einrichtungsseite, normalerweise 8098. Muss dem Port auf der Netzwerkseite entsprechen.
+network:
+  8099/tcp: Direkte HTTP-Einrichtungsseite

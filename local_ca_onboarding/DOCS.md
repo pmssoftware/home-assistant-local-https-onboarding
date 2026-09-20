@@ -7,10 +7,19 @@ key.
 
 ## Before starting
 
-Home Assistant must already use an HTTPS server certificate signed by a local CA,
-and that CA's public certificate must be present in `/ssl`. This app scans `/ssl`
-read-only, rejects key files and non-CA certificates, and automatically selects
-the public root CA. No certificate copy-and-paste is required.
+If Home Assistant already uses a server certificate signed by a local CA, the app
+automatically finds that CA's public certificate in `/ssl`. It rejects key files
+and non-CA certificates. No certificate copy-and-paste is required.
+
+If `/ssl` does not contain a usable root CA, automatic generation creates:
+
+- `/ssl/homeassistant-local-ca.crt` and its protected private key;
+- `/ssl/homeassistant-ip.crt` and `/ssl/homeassistant-ip.key`;
+- `/ssl/homeassistant-ip-fullchain.pem` for Home Assistant.
+
+No existing file is overwritten. To use the generated certificate, Home
+Assistant's `http` configuration must reference the full-chain and server-key
+paths above. Restart Home Assistant after changing its HTTPS certificate.
 
 ## Configuration
 
@@ -21,6 +30,9 @@ the public root CA. No certificate copy-and-paste is required.
 - **Home Assistant HTTPS port:** normally `8123`.
 - **Onboarding page port:** normally `8098`. If you change this value, also
   change the host-side port in the app's Network settings to match.
+- **Generate missing certificates automatically:** enabled by default.
+- **Allow manual server-certificate regeneration:** disabled by default. Enable
+  temporarily to show the guarded button, then disable it again after use.
 
 Start the app, then open its Web UI. For a new phone, open the direct onboarding
 address shown on that page, or scan the QR code. The direct page intentionally
@@ -87,8 +99,8 @@ devices.
 
 ## Security notes
 
-- Keep the CA private key offline or otherwise tightly protected. The app mounts
-  `/ssl` read-only and its discovery code never selects filenames containing
+- Keep the CA private key tightly protected. The app needs write access to `/ssl`
+  for generation; its discovery code never selects filenames containing
   `key` or `priv`, nor files containing private-key data.
 - Compare the SHA-256 fingerprint displayed by the app with a trusted copy before
   installing the CA.

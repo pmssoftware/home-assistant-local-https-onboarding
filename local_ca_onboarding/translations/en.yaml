@@ -1,4 +1,10 @@
 configuration:
+  auto_generate_certificates:
+    name: Generate missing certificates automatically
+    description: When no public root CA exists, generate a private CA and Home Assistant server certificate in /ssl without overwriting existing files.
+  allow_certificate_regeneration:
+    name: Allow manual server-certificate regeneration
+    description: Temporarily show the protected regeneration controls on the setup page. The existing CA is kept so trusted devices remain trusted.
   ca_certificate_pem:
     name: Public CA certificate override
     description: Optional PEM text override. Normally leave empty because the app discovers the public CA automatically.

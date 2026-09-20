@@ -18,6 +18,11 @@ flow, and the onboarding page requires an explicit consent checkbox first. App
 setup itself is automatic: it discovers the public root CA in `/ssl` and detects
 the Home Assistant address from the browser.
 
+On a first start with an empty `/ssl` folder, the app automatically generates a
+private root CA and an IP-valid Home Assistant server certificate. Existing
+certificate files are never overwritten. The generated Home Assistant files are
+`/ssl/homeassistant-ip-fullchain.pem` and `/ssl/homeassistant-ip.key`.
+
 ## Install
 
 Click the button above, or add this repository manually under **Settings → Apps
@@ -68,6 +73,11 @@ copy `local_ca_onboarding/app/static/locales/en.json`, translate every value int
 a new `<language-code>.json` file, and add its code and native name to
 `languages.json`. Keep the same keys; the automated tests verify that registered
 locale files are served by the app.
+
+Manual server-certificate regeneration is available as a guarded setup-page
+action when explicitly enabled in the app configuration. It keeps the root CA,
+so already-onboarded devices remain trusted, and moves replaced server files to
+`/ssl/local-https-backups/`.
 
 See [the full documentation](local_ca_onboarding/DOCS.md) for iOS, Android,
 desktop, VPN, removal, and troubleshooting instructions.

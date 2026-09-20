@@ -122,6 +122,10 @@ async function start() {
     document.getElementById("quick-open-link").href = state.info.home_assistant_url;
     document.getElementById("onboarding-address").textContent = state.info.onboarding_url;
     document.getElementById("qr-code").src = `qr.svg?host=${encodeURIComponent(detectedHost)}`;
+    document.getElementById("regeneration-card").classList.toggle(
+      "hidden",
+      !state.info.allow_certificate_regeneration,
+    );
     selectPlatform(detectPlatform());
     document.getElementById("loading").classList.add("hidden");
     document.getElementById("content").classList.remove("hidden");
@@ -150,6 +154,35 @@ document.getElementById("language-select").addEventListener("change", async (eve
   } catch (error) {
     document.getElementById("error-message").textContent = error.message;
     document.getElementById("error").classList.remove("hidden");
+  }
+});
+
+document.getElementById("regenerate-consent").addEventListener("change", (event) => {
+  const button = document.getElementById("regenerate-button");
+  button.disabled = !event.target.checked;
+  button.classList.toggle("disabled", !event.target.checked);
+});
+
+document.getElementById("regenerate-button").addEventListener("click", async () => {
+  const button = document.getElementById("regenerate-button");
+  const status = document.getElementById("regenerate-status");
+  button.disabled = true;
+  button.classList.add("disabled");
+  status.textContent = message("regenerateWorking", "Generating…");
+  status.classList.remove("hidden");
+  try {
+    const response = await fetch(`api/regenerate-server-certificate?host=${encodeURIComponent(detectedHost)}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ confirmation: "GENERATE" }),
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || `HTTP ${response.status}`);
+    status.textContent = result.message;
+  } catch (error) {
+    status.textContent = `${message("regenerateError", "Generation failed:")} ${error.message}`;
+    button.disabled = false;
+    button.classList.remove("disabled");
   }
 });
 

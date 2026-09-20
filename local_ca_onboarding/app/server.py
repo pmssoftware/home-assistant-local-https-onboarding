@@ -14,13 +14,16 @@ import ssl
 import subprocess
 import sys
 import tempfile
+import threading
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from urllib.error import HTTPError, URLError
 from urllib.parse import parse_qs, urlsplit
+from urllib.request import Request, urlopen
 
 APP_DIR = Path(__file__).resolve().parent
 STATIC_DIR = APP_DIR / "static"
@@ -33,6 +36,10 @@ class ConfigurationError(RuntimeError):
     """Raised for a safe, user-actionable startup error."""
 
 
+class NoCertificateFound(ConfigurationError):
+    """Raised when discovery completed successfully but found no root CA."""
+
+
 @dataclass(frozen=True)
 class Settings:
     https_port: int
@@ -41,6 +48,8 @@ class Settings:
     ca_file: str | None = None
     host: str | None = None
     listen_port: int = 8099
+    auto_generate: bool = True
+    allow_regeneration: bool = False
 
     def formatted_host(self, host: str | None = None) -> str:
         resolved = host or self.host or "homeassistant.local"
@@ -146,6 +155,8 @@ def load_settings(options_path: Path | None = None) -> Settings:
         ca_file=ca_file,
         host=host,
         listen_port=_validated_port(os.environ.get("LISTEN_PORT", 8099), "Listen port"),
+        auto_generate=bool(options.get("auto_generate_certificates", True)),
+        allow_regeneration=bool(options.get("allow_certificate_regeneration", False)),
     )
 
 
@@ -332,9 +343,9 @@ def discover_certificate(settings: Settings, ssl_dir: Path = Path("/ssl")) -> Ce
     if not candidates:
         for result in inspected:
             print(f"CA discovery: {result}", file=sys.stderr, flush=True)
-        raise ConfigurationError(
+        raise NoCertificateFound(
             "No self-signed public CA certificate was found in /ssl. "
-            "Place the public CA there or set the optional CA filename override."
+            "Place the public CA there or enable automatic generation."
         )
     ranked = sorted(candidates.values(), key=lambda item: (-item[0], item[1].name))
     if len(ranked) > 1 and ranked[0][0] == ranked[1][0]:
@@ -346,6 +357,197 @@ def discover_certificate(settings: Settings, ssl_dir: Path = Path("/ssl")) -> Ce
     selected = ranked[0]
     print(f"Automatically selected public CA: /ssl/{selected[1].name}", flush=True)
     return selected[2]
+
+
+GENERATED_FILES = {
+    "ca_cert": "homeassistant-local-ca.crt",
+    "ca_key": "homeassistant-local-ca.key",
+    "server_cert": "homeassistant-ip.crt",
+    "server_key": "homeassistant-ip.key",
+    "fullchain": "homeassistant-ip-fullchain.pem",
+}
+GENERATION_LOCK = threading.Lock()
+
+
+def supervisor_ipv4() -> str:
+    """Return the primary host IPv4 address exposed by Supervisor."""
+    token = os.environ.get("SUPERVISOR_TOKEN", "").strip()
+    if not token:
+        raise ConfigurationError(
+            "Supervisor access is unavailable; set the Home Assistant address override"
+        )
+    request = Request(
+        "http://supervisor/network/info",
+        headers={"Authorization": f"Bearer {token}", "Accept": "application/json"},
+    )
+    try:
+        with urlopen(request, timeout=8) as response:
+            payload = json.load(response)
+    except (HTTPError, URLError, OSError, json.JSONDecodeError) as exc:
+        raise ConfigurationError(
+            "Cannot detect the Home Assistant host IP from Supervisor; "
+            "set the Home Assistant address override"
+        ) from exc
+    data = payload.get("data", payload) if isinstance(payload, dict) else {}
+    interfaces = data.get("interfaces", []) if isinstance(data, dict) else []
+    if isinstance(interfaces, dict):
+        interfaces = [dict(value, interface=name) for name, value in interfaces.items()]
+    ranked: list[tuple[int, str]] = []
+    for interface in interfaces if isinstance(interfaces, list) else []:
+        if not isinstance(interface, dict) or interface.get("enabled") is False:
+            continue
+        ipv4 = interface.get("ipv4") or {}
+        raw_addresses: list[object] = []
+        if isinstance(ipv4, dict):
+            address_list = ipv4.get("address") or []
+            raw_addresses.extend(
+                address_list if isinstance(address_list, list) else [address_list]
+            )
+            if ipv4.get("ip_address"):
+                raw_addresses.append(ipv4["ip_address"])
+        if interface.get("ip_address"):
+            raw_addresses.append(interface["ip_address"])
+        for raw in raw_addresses:
+            try:
+                address = ipaddress.ip_interface(str(raw)).ip
+            except ValueError:
+                continue
+            if address.version != 4 or address.is_loopback or address.is_link_local:
+                continue
+            score = (2 if interface.get("primary") else 0) + (
+                1 if interface.get("connected", True) else 0
+            )
+            ranked.append((score, str(address)))
+    if not ranked:
+        raise ConfigurationError(
+            "Supervisor did not report a usable host IPv4 address; "
+            "set the Home Assistant address override"
+        )
+    return sorted(ranked, key=lambda item: (-item[0], item[1]))[0][1]
+
+
+def certificate_identity(settings: Settings) -> tuple[str, str]:
+    """Return an OpenSSL SAN entry and matching common name."""
+    host = settings.host or supervisor_ipv4()
+    try:
+        address = ipaddress.ip_address(host)
+    except ValueError:
+        return f"DNS:{host}", host
+    return f"IP:{address}", str(address)
+
+
+def _generate_server_files(
+    work: Path, ca_cert: Path, ca_key: Path, san: str, common_name: str
+) -> dict[str, Path]:
+    server_key = work / GENERATED_FILES["server_key"]
+    server_csr = work / "homeassistant-ip.csr"
+    server_cert = work / GENERATED_FILES["server_cert"]
+    fullchain = work / GENERATED_FILES["fullchain"]
+    _openssl(
+        "genpkey", "-quiet", "-algorithm", "RSA", "-pkeyopt",
+        "rsa_keygen_bits:3072", "-out", str(server_key),
+    )
+    _openssl(
+        "req", "-new", "-sha256", "-key", str(server_key),
+        "-out", str(server_csr), "-subj", f"/CN={common_name}",
+        "-addext", f"subjectAltName={san}",
+        "-addext", "basicConstraints=critical,CA:FALSE",
+        "-addext", "keyUsage=critical,digitalSignature,keyEncipherment",
+        "-addext", "extendedKeyUsage=serverAuth",
+    )
+    _openssl(
+        "x509", "-req", "-sha256", "-days", "825", "-in", str(server_csr),
+        "-CA", str(ca_cert), "-CAkey", str(ca_key), "-CAcreateserial",
+        "-copy_extensions", "copy", "-out", str(server_cert),
+    )
+    fullchain.write_bytes(server_cert.read_bytes() + ca_cert.read_bytes())
+    os.chmod(server_key, 0o600)
+    os.chmod(server_cert, 0o644)
+    os.chmod(fullchain, 0o644)
+    return {"server_key": server_key, "server_cert": server_cert, "fullchain": fullchain}
+
+
+def generate_initial_certificates(
+    settings: Settings, ssl_dir: Path = Path("/ssl")
+) -> Certificate:
+    """Create a new root CA and server certificate without overwriting files."""
+    ssl_dir = ssl_dir.resolve()
+    ssl_dir.mkdir(parents=True, exist_ok=True)
+    targets = {key: ssl_dir / name for key, name in GENERATED_FILES.items()}
+    collisions = [path.name for path in targets.values() if path.exists()]
+    if collisions:
+        raise ConfigurationError(
+            "Automatic generation refuses to overwrite existing files: "
+            + ", ".join(collisions)
+        )
+    san, common_name = certificate_identity(settings)
+    with GENERATION_LOCK, tempfile.TemporaryDirectory(
+        prefix=".local-https-", dir=ssl_dir
+    ) as temp:
+        work = Path(temp)
+        ca_key = work / GENERATED_FILES["ca_key"]
+        ca_cert = work / GENERATED_FILES["ca_cert"]
+        _openssl(
+            "genpkey", "-quiet", "-algorithm", "RSA", "-pkeyopt",
+            "rsa_keygen_bits:3072", "-out", str(ca_key),
+        )
+        _openssl(
+            "req", "-x509", "-new", "-sha256", "-days", "3650",
+            "-key", str(ca_key), "-out", str(ca_cert),
+            "-subj", "/CN=Home Assistant Local Root CA",
+            "-addext", "basicConstraints=critical,CA:TRUE",
+            "-addext", "keyUsage=critical,keyCertSign,cRLSign",
+            "-addext", "subjectKeyIdentifier=hash",
+        )
+        os.chmod(ca_key, 0o600)
+        os.chmod(ca_cert, 0o644)
+        generated = _generate_server_files(work, ca_cert, ca_key, san, common_name)
+        generated.update({"ca_key": ca_key, "ca_cert": ca_cert})
+        for key in ("ca_cert", "ca_key", "server_cert", "server_key", "fullchain"):
+            os.replace(generated[key], targets[key])
+    print(f"Generated new local CA and Home Assistant certificate for {san}", flush=True)
+    print(f"SSL certificate: /ssl/{GENERATED_FILES['fullchain']}", flush=True)
+    print(f"SSL private key: /ssl/{GENERATED_FILES['server_key']}", flush=True)
+    return load_certificate(targets["ca_cert"])
+
+
+def regenerate_server_certificate(
+    settings: Settings, ssl_dir: Path = Path("/ssl")
+) -> str:
+    """Replace only the generated server certificate after backing it up."""
+    ssl_dir = ssl_dir.resolve()
+    ca_cert = ssl_dir / GENERATED_FILES["ca_cert"]
+    ca_key = ssl_dir / GENERATED_FILES["ca_key"]
+    if not ca_cert.is_file() or not ca_key.is_file():
+        raise ConfigurationError(
+            "The generated CA certificate and private key are required for regeneration"
+        )
+    san, common_name = certificate_identity(settings)
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    backup = ssl_dir / "local-https-backups" / stamp
+    with GENERATION_LOCK, tempfile.TemporaryDirectory(
+        prefix=".local-https-", dir=ssl_dir
+    ) as temp:
+        generated = _generate_server_files(Path(temp), ca_cert, ca_key, san, common_name)
+        backup.mkdir(parents=True, exist_ok=False)
+        for key in ("server_cert", "server_key", "fullchain"):
+            target = ssl_dir / GENERATED_FILES[key]
+            if target.exists():
+                os.replace(target, backup / target.name)
+            os.replace(generated[key], target)
+    print(f"Regenerated Home Assistant server certificate for {san}", flush=True)
+    return f"Server certificate generated for {common_name}. Restart Home Assistant to use it."
+
+
+def discover_or_generate_certificate(
+    settings: Settings, ssl_dir: Path = Path("/ssl")
+) -> Certificate:
+    try:
+        return discover_certificate(settings, ssl_dir)
+    except NoCertificateFound:
+        if not settings.auto_generate:
+            raise
+        return generate_initial_certificates(settings, ssl_dir)
 
 
 def make_mobileconfig(cert: Certificate, settings: Settings) -> bytes:
@@ -392,7 +594,7 @@ def make_qr_svg(url: str) -> bytes:
 
     image = qrcode.make(
         url,
-        image_factory=qrcode.image.svg.SvgPathImage,
+        image_factory=qrcode.image.svg.SvgPathFillImage,
         box_size=8,
         border=3,
     )
@@ -412,6 +614,7 @@ def public_info(
         "home_assistant_url": settings.home_assistant_url_for(host),
         "onboarding_url": settings.onboarding_url_for(host),
         "platforms": ["ios", "android", "desktop"],
+        "allow_certificate_regeneration": settings.allow_regeneration,
     }
 
 
@@ -591,6 +794,50 @@ class OnboardingHandler(BaseHTTPRequestHandler):
         self._route(False)
 
     def do_POST(self) -> None:  # noqa: N802
+        path = urlsplit(self.path).path
+        if path == "/api/regenerate-server-certificate":
+            if not self.app.settings.allow_regeneration:
+                self._send(
+                    HTTPStatus.FORBIDDEN,
+                    json.dumps({"error": "Certificate regeneration is disabled"}).encode(),
+                    "application/json",
+                )
+                return
+            if self.headers.get_content_type() != "application/json":
+                self._send(HTTPStatus.UNSUPPORTED_MEDIA_TYPE, b'{"error":"JSON required"}', "application/json")
+                return
+            try:
+                length = int(self.headers.get("Content-Length", "0"))
+                if not 0 < length <= 1024:
+                    raise ValueError
+                payload = json.loads(self.rfile.read(length))
+                if payload.get("confirmation") != "GENERATE":
+                    raise ValueError
+                request_settings = Settings(
+                    https_port=self.app.settings.https_port,
+                    onboarding_port=self.app.settings.onboarding_port,
+                    host=self._request_host(),
+                    listen_port=self.app.settings.listen_port,
+                    auto_generate=self.app.settings.auto_generate,
+                    allow_regeneration=self.app.settings.allow_regeneration,
+                )
+                result = regenerate_server_certificate(request_settings)
+            except (ValueError, json.JSONDecodeError):
+                self._send(HTTPStatus.BAD_REQUEST, b'{"error":"Explicit confirmation required"}', "application/json")
+                return
+            except ConfigurationError as exc:
+                self._send(
+                    HTTPStatus.CONFLICT,
+                    json.dumps({"error": str(exc)}).encode(),
+                    "application/json",
+                )
+                return
+            self._send(
+                HTTPStatus.OK,
+                json.dumps({"message": result}).encode(),
+                "application/json",
+            )
+            return
         self._send(
             HTTPStatus.METHOD_NOT_ALLOWED,
             b"Method not allowed\n",
@@ -601,7 +848,7 @@ class OnboardingHandler(BaseHTTPRequestHandler):
 def main() -> int:
     try:
         settings = load_settings()
-        cert = discover_certificate(settings)
+        cert = discover_or_generate_certificate(settings)
     except ConfigurationError as exc:
         print(f"ERROR: {exc}", file=sys.stderr, flush=True)
         return 2

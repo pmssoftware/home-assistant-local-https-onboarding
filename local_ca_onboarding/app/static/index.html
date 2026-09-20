@@ -132,6 +132,19 @@
           </div>
           <img id="qr-code" src="qr.svg" alt="QR code for this onboarding page" width="180" height="180">
         </section>
+
+        <section class="card regeneration-card hidden" id="regeneration-card">
+          <h2 data-i18n="regenerateTitle">Generate a new server certificate</h2>
+          <p data-i18n="regenerateDescription">This keeps the existing trusted CA, backs up the current server certificate and key, and creates a new certificate for this Home Assistant address.</p>
+          <div class="regeneration-actions">
+            <label class="consent">
+              <input id="regenerate-consent" type="checkbox">
+              <span data-i18n="regenerateConsent">I understand that Home Assistant must be restarted after generation.</span>
+            </label>
+            <button id="regenerate-button" class="primary button-reset disabled" disabled data-i18n="regenerateButton">Generate new server certificate</button>
+            <p class="status hidden" id="regenerate-status" role="status"></p>
+          </div>
+        </section>
       </div>
 
       <footer>

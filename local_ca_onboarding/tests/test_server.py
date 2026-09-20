@@ -7,6 +7,7 @@ import threading
 import unittest
 import urllib.error
 import urllib.request
+from unittest import mock
 from pathlib import Path
 
 
@@ -84,6 +85,65 @@ class SettingsTests(unittest.TestCase):
             settings = server.Settings(https_port=8123, onboarding_port=8098)
             cert = server.discover_certificate(settings, ssl_dir)
             self.assertEqual(cert.common_name, "Test Local HTTPS CA")
+
+    def test_first_start_generates_ca_and_server_certificate(self):
+        with tempfile.TemporaryDirectory() as temp:
+            ssl_dir = Path(temp)
+            settings = server.Settings(
+                host="192.168.1.50",
+                https_port=8123,
+                onboarding_port=8098,
+            )
+            cert = server.discover_or_generate_certificate(settings, ssl_dir)
+            self.assertEqual(cert.common_name, "Home Assistant Local Root CA")
+            for name in server.GENERATED_FILES.values():
+                self.assertTrue((ssl_dir / name).is_file(), name)
+            self.assertEqual((ssl_dir / "homeassistant-local-ca.key").stat().st_mode & 0o777, 0o600)
+            details = server._openssl(
+                "x509", "-in", str(ssl_dir / "homeassistant-ip.crt"), "-noout", "-text"
+            )
+            self.assertIn(b"IP Address:192.168.1.50", details)
+
+    def test_generation_never_overwrites_partial_files(self):
+        with tempfile.TemporaryDirectory() as temp:
+            ssl_dir = Path(temp)
+            existing = ssl_dir / "homeassistant-ip.key"
+            existing.write_text("keep", encoding="ascii")
+            settings = server.Settings(
+                host="192.168.1.50", https_port=8123, onboarding_port=8098
+            )
+            with self.assertRaises(server.ConfigurationError):
+                server.generate_initial_certificates(settings, ssl_dir)
+            self.assertEqual(existing.read_text(encoding="ascii"), "keep")
+
+    def test_regeneration_keeps_ca_and_backs_up_server_files(self):
+        with tempfile.TemporaryDirectory() as temp:
+            ssl_dir = Path(temp)
+            settings = server.Settings(
+                host="192.168.1.50", https_port=8123, onboarding_port=8098
+            )
+            server.generate_initial_certificates(settings, ssl_dir)
+            ca_before = (ssl_dir / "homeassistant-local-ca.crt").read_bytes()
+            cert_before = (ssl_dir / "homeassistant-ip.crt").read_bytes()
+            result = server.regenerate_server_certificate(settings, ssl_dir)
+            self.assertIn("192.168.1.50", result)
+            self.assertEqual(
+                (ssl_dir / "homeassistant-local-ca.crt").read_bytes(), ca_before
+            )
+            self.assertNotEqual(
+                (ssl_dir / "homeassistant-ip.crt").read_bytes(), cert_before
+            )
+            backups = list((ssl_dir / "local-https-backups").glob("*"))
+            self.assertEqual(len(backups), 1)
+            self.assertEqual(
+                (backups[0] / "homeassistant-ip.crt").read_bytes(), cert_before
+            )
+            server._openssl(
+                "verify",
+                "-CAfile",
+                str(ssl_dir / "homeassistant-local-ca.crt"),
+                str(ssl_dir / "homeassistant-ip.crt"),
+            )
 
 
 class CertificateTests(unittest.TestCase):
@@ -197,6 +257,51 @@ class HttpTests(CertificateTests):
         response, body = self.fetch("qr.svg")
         self.assertEqual(response.headers.get_content_type(), "image/svg+xml")
         self.assertIn(b"<svg", body)
+        self.assertIn(b'<rect fill="white"', body)
+
+    def test_regeneration_endpoint_is_disabled_by_default(self):
+        request = urllib.request.Request(
+            self.base_url + "api/regenerate-server-certificate",
+            data=b'{"confirmation":"GENERATE"}',
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with self.assertRaises(urllib.error.HTTPError) as caught:
+            urllib.request.urlopen(request, timeout=2)
+        self.assertEqual(caught.exception.code, 403)
+        caught.exception.close()
+
+    def test_regeneration_endpoint_requires_opt_in_and_confirmation(self):
+        settings = server.Settings(
+            ca_pem=self.cert.pem,
+            host="192.168.1.50",
+            https_port=8123,
+            onboarding_port=8098,
+            allow_regeneration=True,
+        )
+        httpd = server.OnboardingServer(("127.0.0.1", 0), settings, self.cert)
+        thread = threading.Thread(target=httpd.serve_forever, daemon=True)
+        thread.start()
+        request = urllib.request.Request(
+            f"http://127.0.0.1:{httpd.server_port}/api/regenerate-server-certificate",
+            data=b'{"confirmation":"GENERATE"}',
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        try:
+            with mock.patch.object(
+                server,
+                "regenerate_server_certificate",
+                return_value="Certificate generated",
+            ) as regenerate:
+                with urllib.request.urlopen(request, timeout=2) as response:
+                    payload = json.load(response)
+                self.assertEqual(payload["message"], "Certificate generated")
+                regenerate.assert_called_once()
+        finally:
+            httpd.shutdown()
+            httpd.server_close()
+            thread.join(timeout=2)
 
     def test_unknown_path_is_404(self):
         with self.assertRaises(urllib.error.HTTPError) as caught:

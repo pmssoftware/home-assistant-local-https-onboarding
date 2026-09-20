@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.3.0
+
+- Generate a private root CA and Home Assistant server certificate automatically
+  on first start when no usable CA exists.
+- Detect the primary Home Assistant host IPv4 address through the read-only
+  Supervisor network API, with the host override as a fallback.
+- Add an optional, explicitly enabled UI action to regenerate only the server
+  certificate while keeping the trusted CA and backing up replaced files.
+- Write keys and certificates atomically to `/ssl`, use restrictive private-key
+  permissions, and never overwrite unrelated certificate files.
+
 ## 0.2.7
 
 - Simplify the German wording for manual confirmation and quick mode.
