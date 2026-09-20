@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.7
+
+- Simplify the German wording for manual confirmation and quick mode.
+
 ## 0.2.6
 
 - Fix formatted German translations in the safety notice, quick-mode warning,
