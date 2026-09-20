@@ -58,6 +58,17 @@ Home Assistant directly so the browser can offer its own warning/exception flow.
 This shortcut is browser-specific and does not establish system-wide trust or
 configure the Home Assistant mobile app.
 
+The onboarding interface is available in English and German. It selects the
+browser language automatically and also provides a language menu.
+
+### Adding a translation
+
+Translations are intentionally separate from the page layout. Contributors can
+copy `local_ca_onboarding/app/static/locales/en.json`, translate every value into
+a new `<language-code>.json` file, and add its code and native name to
+`languages.json`. Keep the same keys; the automated tests verify that registered
+locale files are served by the app.
+
 See [the full documentation](local_ca_onboarding/DOCS.md) for iOS, Android,
 desktop, VPN, removal, and troubleshooting instructions.
 

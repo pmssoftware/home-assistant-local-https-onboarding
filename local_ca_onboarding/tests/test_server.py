@@ -153,6 +153,25 @@ class HttpTests(CertificateTests):
         self.assertIn(b'id="quick-open-link"', body)
         self.assertIn(b"does not install the CA", body)
 
+    def test_registered_locales_are_complete(self):
+        response, body = self.fetch("assets/locales/languages.json")
+        self.assertEqual(response.headers.get_content_type(), "application/json")
+        languages = json.loads(body)
+        codes = {item["code"] for item in languages}
+        self.assertTrue({"en", "de"}.issubset(codes))
+        _, english_body = self.fetch("assets/locales/en.json")
+        english_keys = set(json.loads(english_body))
+        for locale in codes:
+            locale_response, locale_body = self.fetch(f"assets/locales/{locale}.json")
+            self.assertEqual(locale_response.headers.get_content_type(), "application/json")
+            self.assertEqual(set(json.loads(locale_body)), english_keys)
+
+    def test_locale_path_traversal_is_rejected(self):
+        with self.assertRaises(urllib.error.HTTPError) as caught:
+            self.fetch("assets/locales/missing.json")
+        self.assertEqual(caught.exception.code, 404)
+        caught.exception.close()
+
     def test_android_download_is_der_public_certificate(self):
         response, body = self.fetch("download/home-assistant-local-ca.cer")
         self.assertEqual(response.headers.get_content_type(), "application/pkix-cert")

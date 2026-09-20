@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.5
+
+- Add complete German and English onboarding UI translations.
+- Detect the browser language automatically and add a language selector.
+- Store translations in separate JSON locale files with a small language
+  registry so contributors can add more languages without changing the layout.
+
 ## 0.2.4
 
 - Add an optional browser-only quick mode that skips CA installation and opens

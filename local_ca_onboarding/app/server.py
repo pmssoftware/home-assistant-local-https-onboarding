@@ -511,6 +511,23 @@ class OnboardingHandler(BaseHTTPRequestHandler):
                 send_body=send_body,
             )
             return
+        if path.startswith("/assets/locales/"):
+            locale_name = path.removeprefix("/assets/locales/")
+            if not locale_name or "/" in locale_name or not locale_name.endswith(".json"):
+                self._send(HTTPStatus.NOT_FOUND, b"Not found\n", "text/plain; charset=utf-8", send_body=send_body)
+                return
+            locale_path = STATIC_DIR / "locales" / locale_name
+            if not locale_path.is_file():
+                self._send(HTTPStatus.NOT_FOUND, b"Not found\n", "text/plain; charset=utf-8", send_body=send_body)
+                return
+            self._send(
+                HTTPStatus.OK,
+                locale_path.read_bytes(),
+                "application/json; charset=utf-8",
+                cache="public, max-age=3600",
+                send_body=send_body,
+            )
+            return
         if path == "/api/info":
             body = json.dumps(
                 public_info(self.app.cert, self.app.settings, self._request_host())

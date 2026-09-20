@@ -23,6 +23,8 @@ body {
 
 .shell { width: min(760px, calc(100% - 32px)); margin: 0 auto; padding: 54px 0 40px; }
 .hero { display: flex; align-items: center; gap: 20px; margin-bottom: 26px; }
+.language-picker { margin-left: auto; display: grid; gap: 4px; color: var(--muted); font-size: .78rem; font-weight: 700; }
+.language-picker select { min-width: 112px; padding: 8px 30px 8px 10px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface); color: var(--text); font: inherit; }
 .shield {
   display: grid; place-items: center; flex: 0 0 70px; height: 78px;
   color: white; font-size: 34px; font-weight: 800;
@@ -79,6 +81,7 @@ footer { padding: 18px 8px; color: var(--muted); text-align: center; font-size: 
 @media (max-width: 620px) {
   .shell { width: min(100% - 20px, 760px); padding-top: 28px; }
   .hero { align-items: flex-start; }
+  .language-picker { margin-left: 0; }
   .shield { flex-basis: 54px; height: 62px; font-size: 26px; }
   .card { padding: 22px 18px; }
   .step { top: 18px; right: 18px; }

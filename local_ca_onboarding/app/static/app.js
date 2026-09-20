@@ -1,7 +1,54 @@
 "use strict";
 
-const state = { platform: "desktop", info: null };
+const state = { platform: "desktop", info: null, messages: {}, locale: "en" };
 const detectedHost = window.location.hostname || "homeassistant.local";
+
+function message(key, fallback = key) {
+  return state.messages[key] || fallback;
+}
+
+function applyTranslations() {
+  document.documentElement.lang = state.locale;
+  document.querySelectorAll("[data-i18n]").forEach((element) => {
+    element.textContent = message(element.dataset.i18n, element.textContent);
+  });
+  document.querySelectorAll("[data-i18n-html]").forEach((element) => {
+    element.innerHTML = message(element.dataset.i18n, element.innerHTML);
+  });
+  document.title = message("pageTitle", document.title);
+  if (state.info) {
+    document.getElementById("not-after").textContent = formatDate(state.info.not_after);
+  }
+  selectPlatform(state.platform);
+}
+
+async function loadLocale(locale) {
+  const response = await fetch(`assets/locales/${encodeURIComponent(locale)}.json`, { cache: "no-store" });
+  if (!response.ok) throw new Error(`Language file returned ${response.status}`);
+  state.messages = await response.json();
+  state.locale = locale;
+  localStorage.setItem("onboarding-language", locale);
+  applyTranslations();
+}
+
+async function prepareLanguages() {
+  const response = await fetch("assets/locales/languages.json", { cache: "no-store" });
+  if (!response.ok) throw new Error(`Language list returned ${response.status}`);
+  const languages = await response.json();
+  const select = document.getElementById("language-select");
+  for (const language of languages) {
+    const option = document.createElement("option");
+    option.value = language.code;
+    option.textContent = language.name;
+    select.append(option);
+  }
+  const saved = localStorage.getItem("onboarding-language");
+  const browser = (navigator.language || "en").toLowerCase().split("-")[0];
+  const available = languages.map((language) => language.code);
+  const selected = available.includes(saved) ? saved : (available.includes(browser) ? browser : "en");
+  select.value = selected;
+  await loadLocale(selected);
+}
 
 function detectPlatform() {
   const ua = navigator.userAgent || "";
@@ -19,9 +66,9 @@ function downloadFor(platform) {
 }
 
 function buttonText(platform) {
-  if (platform === "ios") return "Download iPhone / iPad profile";
-  if (platform === "android") return "Download Android CA certificate";
-  return "Download public CA certificate";
+  if (platform === "ios") return message("downloadIos", "Download iPhone / iPad profile");
+  if (platform === "android") return message("downloadAndroid", "Download Android CA certificate");
+  return message("downloadDesktop", "Download public CA certificate");
 }
 
 function selectPlatform(platform) {
@@ -46,7 +93,7 @@ function selectPlatform(platform) {
 function formatDate(value) {
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return value;
-  return new Intl.DateTimeFormat(undefined, { dateStyle: "long", timeStyle: "short" }).format(parsed);
+  return new Intl.DateTimeFormat(state.locale, { dateStyle: "long", timeStyle: "short" }).format(parsed);
 }
 
 function setConsent(enabled) {
@@ -63,6 +110,7 @@ function setQuickMode(enabled) {
 
 async function start() {
   try {
+    await prepareLanguages();
     const response = await fetch(`api/info?host=${encodeURIComponent(detectedHost)}`, { cache: "no-store" });
     if (!response.ok) throw new Error(`Certificate information returned ${response.status}`);
     state.info = await response.json();
@@ -80,7 +128,7 @@ async function start() {
   } catch (error) {
     document.getElementById("loading").classList.add("hidden");
     document.getElementById("error").classList.remove("hidden");
-    document.getElementById("error-message").textContent = error.message;
+    document.getElementById("error-message").textContent = `${message("errorMessage", "The setup information could not be loaded.")} ${error.message}`;
   }
 }
 
@@ -94,6 +142,15 @@ document.getElementById("consent").addEventListener("change", (event) => {
 
 document.getElementById("quick-mode").addEventListener("change", (event) => {
   setQuickMode(event.target.checked);
+});
+
+document.getElementById("language-select").addEventListener("change", async (event) => {
+  try {
+    await loadLocale(event.target.value);
+  } catch (error) {
+    document.getElementById("error-message").textContent = error.message;
+    document.getElementById("error").classList.remove("hidden");
+  }
 });
 
 document.getElementById("install-button").addEventListener("click", (event) => {

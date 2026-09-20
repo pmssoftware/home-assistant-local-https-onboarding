@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="color-scheme" content="light dark">
-    <title>Home Assistant secure connection setup</title>
+    <title data-i18n="pageTitle">Home Assistant secure connection setup</title>
     <link rel="stylesheet" href="assets/styles.css">
   </head>
   <body>
@@ -13,69 +13,72 @@
         <div class="shield" aria-hidden="true">✓</div>
         <div>
           <p class="eyebrow">HOME ASSISTANT</p>
-          <h1>Secure connection setup</h1>
-          <p class="lede">Trust your private Home Assistant certificate on this device.</p>
+          <h1 data-i18n="heading">Secure connection setup</h1>
+          <p class="lede" data-i18n="lede">Trust your private Home Assistant certificate on this device.</p>
         </div>
+        <label class="language-picker">
+          <span data-i18n="languageLabel">Language</span>
+          <select id="language-select" aria-label="Language"></select>
+        </label>
       </header>
 
-      <section class="notice">
-        <strong>This never installs silently.</strong>
-        Your phone, computer, or browser will show its own confirmation screen before trust is added.
+      <section class="notice" data-i18n-html="notice">
+        <strong>This never installs silently.</strong> Your phone, computer, or browser will show its own confirmation screen before trust is added.
       </section>
 
       <section class="card" id="loading">
-        <p>Reading the public certificate…</p>
+        <p data-i18n="loading">Reading the public certificate…</p>
       </section>
 
       <section class="card hidden" id="error" role="alert">
-        <h2>Setup page unavailable</h2>
+        <h2 data-i18n="errorTitle">Setup page unavailable</h2>
         <p id="error-message">The certificate information could not be loaded.</p>
       </section>
 
       <div id="content" class="hidden">
         <section class="card mode-card">
           <div>
-            <h2>Use browser-only quick mode</h2>
-            <p>Skip certificate installation and let this browser remember an exception instead.</p>
+            <h2 data-i18n="quickTitle">Use browser-only quick mode</h2>
+            <p data-i18n="quickDescription">Skip certificate installation and let this browser remember an exception instead.</p>
           </div>
           <label class="switch">
             <input id="quick-mode" type="checkbox">
             <span class="slider" aria-hidden="true"></span>
-            <span class="switch-label">Quick mode</span>
+            <span class="switch-label" data-i18n="quickLabel">Quick mode</span>
           </label>
         </section>
 
         <section class="card warning-card hidden" id="quick-flow">
-          <h2>Open Home Assistant directly</h2>
-          <p>Your browser will probably show a certificate warning. Choose its option to continue or accept the risk. The browser may remember that choice.</p>
-          <a id="quick-open-link" class="primary" target="_blank" rel="noopener noreferrer">Open Home Assistant HTTPS</a>
-          <p class="hint"><strong>This does not install the CA.</strong> It applies only to this browser profile, may still show a warning indicator, and does not make the Home Assistant mobile app trust the certificate. Repeat it separately on every browser or device.</p>
+          <h2 data-i18n="quickOpenTitle">Open Home Assistant directly</h2>
+          <p data-i18n="quickWarning">Your browser will probably show a certificate warning. Choose its option to continue or accept the risk. The browser may remember that choice.</p>
+          <a id="quick-open-link" class="primary" target="_blank" rel="noopener noreferrer" data-i18n="quickButton">Open Home Assistant HTTPS</a>
+          <p class="hint" data-i18n-html="quickLimit"><strong>This does not install the CA.</strong> It applies only to this browser profile, may still show a warning indicator, and does not make the Home Assistant mobile app trust the certificate. Repeat it separately on every browser or device.</p>
         </section>
 
         <div id="certificate-flow">
         <section class="card">
           <span class="step">1</span>
-          <h2>Check what you are trusting</h2>
+          <h2 data-i18n="checkTitle">Check what you are trusting</h2>
           <dl class="facts">
-            <div><dt>Certificate</dt><dd id="certificate-name"></dd></div>
-            <div><dt>Valid until</dt><dd id="not-after"></dd></div>
+            <div><dt data-i18n="certificate">Certificate</dt><dd id="certificate-name"></dd></div>
+            <div><dt data-i18n="validUntil">Valid until</dt><dd id="not-after"></dd></div>
             <div><dt>Home Assistant</dt><dd id="ha-address"></dd></div>
           </dl>
-          <p class="fingerprint-label">SHA-256 fingerprint</p>
+          <p class="fingerprint-label" data-i18n="fingerprint">SHA-256 fingerprint</p>
           <code id="fingerprint"></code>
-          <p class="hint">Compare this with the fingerprint shown by the person who manages this Home Assistant.</p>
+          <p class="hint" data-i18n="fingerprintHint">Compare this with the fingerprint shown by the person who manages this Home Assistant.</p>
         </section>
 
         <section class="card">
           <span class="step">2</span>
-          <h2>Choose this device</h2>
+          <h2 data-i18n="chooseDevice">Choose this device</h2>
           <div class="platforms" role="tablist" aria-label="Device type">
             <button class="platform" data-platform="ios" role="tab">iPhone / iPad</button>
             <button class="platform" data-platform="android" role="tab">Android</button>
-            <button class="platform" data-platform="desktop" role="tab">Computer</button>
+            <button class="platform" data-platform="desktop" role="tab" data-i18n="computer">Computer</button>
           </div>
 
-          <div class="instructions" id="instructions-ios" data-instructions="ios">
+          <div class="instructions" id="instructions-ios" data-instructions="ios" data-i18n-html="iosInstructions">
             <ol>
               <li>Open this page in <strong>Safari</strong>, then approve the profile download below.</li>
               <li>Open <strong>Settings</strong> and tap <strong>Profile Downloaded</strong>, then install it.</li>
@@ -84,7 +87,7 @@
             </ol>
           </div>
 
-          <div class="instructions" id="instructions-android" data-instructions="android">
+          <div class="instructions" id="instructions-android" data-instructions="android" data-i18n-html="androidInstructions">
             <ol>
               <li>Open this page in your regular browser, then download the CA certificate below.</li>
               <li>Open Android's certificate installer when prompted.</li>
@@ -93,7 +96,7 @@
             </ol>
           </div>
 
-          <div class="instructions" id="instructions-desktop" data-instructions="desktop">
+          <div class="instructions" id="instructions-desktop" data-instructions="desktop" data-i18n-html="desktopInstructions">
             <p><strong>Firefox:</strong> Settings → Privacy &amp; Security → Certificates → View Certificates → Authorities → Import.</p>
             <p><strong>Windows:</strong> Open the downloaded certificate → Install Certificate → Current User → Trusted Root Certification Authorities.</p>
             <p><strong>macOS:</strong> Open the certificate in Keychain Access, add it to the login keychain, then set “Always Trust”.</p>
@@ -103,28 +106,28 @@
 
         <section class="card consent-card">
           <span class="step">3</span>
-          <h2>Give permission</h2>
+          <h2 data-i18n="permissionTitle">Give permission</h2>
           <label class="consent">
             <input id="consent" type="checkbox">
-            <span>I recognize this Home Assistant address and verified the fingerprint. I want this device to trust this local CA.</span>
+            <span data-i18n="consent">I recognize this Home Assistant address and verified the fingerprint. I want this device to trust this local CA.</span>
           </label>
           <a id="install-button" class="primary disabled" aria-disabled="true">Install public certificate</a>
-          <p class="privacy">Only the public certificate is downloaded. No password, private key, or device information is collected.</p>
+          <p class="privacy" data-i18n="privacy">Only the public certificate is downloaded. No password, private key, or device information is collected.</p>
         </section>
 
         <section class="card success-card">
           <span class="step">4</span>
-          <h2>Test the secure connection</h2>
-          <p>After finishing the device's confirmation steps, fully close and reopen your browser or Home Assistant app.</p>
-          <a id="test-link" class="secondary" target="_blank" rel="noopener noreferrer">Open Home Assistant securely</a>
-          <p class="hint">A lock or “connection secure” message means setup worked. If a warning remains, recheck the Full Trust or CA certificate step.</p>
+          <h2 data-i18n="testTitle">Test the secure connection</h2>
+          <p data-i18n="testDescription">After finishing the device's confirmation steps, fully close and reopen your browser or Home Assistant app.</p>
+          <a id="test-link" class="secondary" target="_blank" rel="noopener noreferrer" data-i18n="testButton">Open Home Assistant securely</a>
+          <p class="hint" data-i18n="testHint">A lock or “connection secure” message means setup worked. If a warning remains, recheck the Full Trust or CA certificate step.</p>
         </section>
         </div>
 
         <section class="card qr-card">
           <div>
-            <h2>Setting up another phone?</h2>
-            <p>Connect it to the same local network and scan this code.</p>
+            <h2 data-i18n="qrTitle">Setting up another phone?</h2>
+            <p data-i18n="qrDescription">Connect it to the same local network and scan this code.</p>
             <code id="onboarding-address"></code>
           </div>
           <img id="qr-code" src="qr.svg" alt="QR code for this onboarding page" width="180" height="180">
@@ -132,7 +135,7 @@
       </div>
 
       <footer>
-        Keep the onboarding port private to your local network. You can stop this app when setup is finished.
+        <span data-i18n="footer">Keep the onboarding port private to your local network. You can stop this app when setup is finished.</span>
       </footer>
     </main>
     <script src="assets/app.js" defer></script>
