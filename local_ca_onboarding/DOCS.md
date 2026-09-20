@@ -7,17 +7,17 @@ key.
 
 ## Before starting
 
-Home Assistant must already use an HTTPS server certificate signed by your local
-CA. Paste that CA's **public** PEM certificate into the app configuration before
-starting it. The public CA is safe to distribute; the CA private key must never
-be pasted. The app rejects any configuration containing a private-key marker and
-has no access to Home Assistant's `/ssl` directory.
+Home Assistant must already use an HTTPS server certificate signed by a local CA,
+and that CA's public certificate must be present in `/ssl`. This app scans `/ssl`
+read-only, rejects key files and non-CA certificates, and automatically selects
+the public root CA. No certificate copy-and-paste is required.
 
 ## Configuration
 
-- **Public CA certificate:** PEM text for the public root CA.
-- **Home Assistant address:** the exact IP address or hostname present in the
-  server certificate, for example `192.168.1.50`.
+- **Public CA certificate:** normally detected automatically. An optional
+  filename or PEM override is available for unusual installations.
+- **Home Assistant address:** detected from the browser. An optional override is
+  available if a reverse proxy hides the original address.
 - **Home Assistant HTTPS port:** normally `8123`.
 - **Onboarding page port:** normally `8098`. If you change this value, also
   change the host-side port in the app's Network settings to match.
@@ -77,8 +77,9 @@ devices.
 
 ## Security notes
 
-- Keep the CA private key offline or otherwise tightly protected. This app does
-  not map or read Home Assistant's `/ssl` directory.
+- Keep the CA private key offline or otherwise tightly protected. The app mounts
+  `/ssl` read-only and its discovery code never selects filenames containing
+  `key` or `priv`, nor files containing private-key data.
 - Compare the SHA-256 fingerprint displayed by the app with a trusted copy before
   installing the CA.
 - Use this only on a trusted LAN; do not forward the onboarding port to the

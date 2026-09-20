@@ -61,12 +61,26 @@ class SettingsTests(unittest.TestCase):
             with self.assertRaises(server.ConfigurationError):
                 server.load_settings(options)
 
-    def test_rejects_unconfigured_host(self):
+    def test_unconfigured_host_uses_browser_safe_fallback(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
             options = self.write_options(root, home_assistant_host=None)
-            with self.assertRaises(server.ConfigurationError):
-                server.load_settings(options)
+            settings = server.load_settings(options)
+            self.assertIsNone(settings.host)
+            self.assertEqual(
+                settings.home_assistant_url, "https://homeassistant.local:8123/"
+            )
+
+    def test_automatic_ca_discovery(self):
+        with tempfile.TemporaryDirectory() as temp:
+            ssl_dir = Path(temp)
+            (ssl_dir / "homeassistant-local-ca.crt").write_bytes(FIXTURE_CERT.read_bytes())
+            (ssl_dir / "homeassistant-private.key").write_text(
+                "-----BEGIN PRIVATE KEY-----\nnot-a-real-key\n", encoding="ascii"
+            )
+            settings = server.Settings(https_port=8123, onboarding_port=8098)
+            cert = server.discover_certificate(settings, ssl_dir)
+            self.assertEqual(cert.common_name, "Test Local HTTPS CA")
 
 
 class CertificateTests(unittest.TestCase):

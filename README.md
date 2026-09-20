@@ -14,7 +14,9 @@ It provides guided setup for:
 - A QR-code handoff to another phone on the same LAN or VPN
 
 The app never installs trust silently. Every device displays its native approval
-flow, and the onboarding page requires an explicit consent checkbox first.
+flow, and the onboarding page requires an explicit consent checkbox first. App
+setup itself is automatic: it discovers the public root CA in `/ssl` and detects
+the Home Assistant address from the browser.
 
 ## Install
 
@@ -31,20 +33,21 @@ Then install **Local HTTPS Onboarding** from the App Store.
 > install or run add-ons. The official Home Assistant repository button above is
 > the correct one-click installer for this package type.
 
-## Configure
+## Start
 
-Before starting the app:
+There are no required configuration fields. Install and start the app, then open
+its Web UI. The app automatically:
 
-1. Paste your CA's **public PEM certificate** into `ca_certificate_pem`.
-2. Enter the IP address or hostname covered by your Home Assistant server
-   certificate in `home_assistant_host`.
-3. Confirm the HTTPS port, normally `8123`.
-4. Keep the onboarding port at `8098` unless you also change its Network mapping.
+- finds a valid, unexpired, self-signed public CA certificate in `/ssl`;
+- ignores key files and non-CA server certificates;
+- derives the Home Assistant IP or hostname from the browser request;
+- creates the iOS profile, Android certificate, desktop certificate, and QR code.
 
-Never paste a private key. The app rejects private-key markers and has no access
-to Home Assistant's `/ssl` directory.
+Unusual installations can optionally select a specific public CA filename or
+override the detected host in the Configuration tab. PEM paste remains available
+only as an advanced fallback.
 
-Start the app and open its Web UI. New devices can browse directly to the HTTP
+New devices can browse directly to the HTTP
 onboarding address shown there. The temporary HTTP page solves the certificate
 bootstrap problem and exposes only the public CA certificate. Do not forward the
 onboarding port to the public internet; stop the app when onboarding is finished.

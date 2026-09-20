@@ -20,7 +20,7 @@ from datetime import datetime, timezone
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import urlsplit
+from urllib.parse import parse_qs, urlsplit
 
 APP_DIR = Path(__file__).resolve().parent
 STATIC_DIR = APP_DIR / "static"
@@ -35,27 +35,34 @@ class ConfigurationError(RuntimeError):
 
 @dataclass(frozen=True)
 class Settings:
-    ca_pem: bytes
-    host: str
     https_port: int
     onboarding_port: int
+    ca_pem: bytes | None = None
+    ca_file: str | None = None
+    host: str | None = None
     listen_port: int = 8099
 
-    @property
-    def formatted_host(self) -> str:
+    def formatted_host(self, host: str | None = None) -> str:
+        resolved = host or self.host or "homeassistant.local"
         try:
-            value = ipaddress.ip_address(self.host)
+            value = ipaddress.ip_address(resolved)
             return f"[{value}]" if value.version == 6 else str(value)
         except ValueError:
-            return self.host
+            return resolved
+
+    def home_assistant_url_for(self, host: str | None = None) -> str:
+        return f"https://{self.formatted_host(host)}:{self.https_port}/"
+
+    def onboarding_url_for(self, host: str | None = None) -> str:
+        return f"http://{self.formatted_host(host)}:{self.onboarding_port}/"
 
     @property
     def home_assistant_url(self) -> str:
-        return f"https://{self.formatted_host}:{self.https_port}/"
+        return self.home_assistant_url_for()
 
     @property
     def onboarding_url(self) -> str:
-        return f"http://{self.formatted_host}:{self.onboarding_port}/"
+        return self.onboarding_url_for()
 
 
 @dataclass(frozen=True)
@@ -108,29 +115,36 @@ def load_settings(options_path: Path | None = None) -> Settings:
     except (OSError, json.JSONDecodeError) as exc:
         raise ConfigurationError(f"Cannot read options: {exc}") from exc
 
-    cert_setting = str(options.get("ca_certificate_pem", "")).strip()
-    if not cert_setting:
-        raise ConfigurationError("Public CA certificate cannot be empty")
-    try:
-        ca_pem = (cert_setting + "\n").encode("ascii", "strict")
-    except UnicodeEncodeError as exc:
-        raise ConfigurationError("Public CA certificate must contain ASCII PEM text") from exc
-    if len(ca_pem) > MAX_CERT_SIZE:
-        raise ConfigurationError("Public CA certificate is unexpectedly large")
-    if b"PRIVATE KEY" in ca_pem.upper():
-        raise ConfigurationError("Refusing to use configuration containing a private key")
-    if b"-----BEGIN CERTIFICATE-----" not in ca_pem:
-        raise ConfigurationError("Public CA certificate must be PEM certificate text")
+    cert_setting = str(options.get("ca_certificate_pem") or "").strip()
+    ca_pem = None
+    if cert_setting:
+        try:
+            ca_pem = (cert_setting + "\n").encode("ascii", "strict")
+        except UnicodeEncodeError as exc:
+            raise ConfigurationError("Public CA certificate must contain ASCII PEM text") from exc
+        if len(ca_pem) > MAX_CERT_SIZE:
+            raise ConfigurationError("Public CA certificate is unexpectedly large")
+        if b"PRIVATE KEY" in ca_pem.upper():
+            raise ConfigurationError("Refusing to use configuration containing a private key")
+        if b"-----BEGIN CERTIFICATE-----" not in ca_pem:
+            raise ConfigurationError("Public CA certificate must be PEM certificate text")
+
+    ca_file = str(options.get("ca_certificate_file") or "").strip() or None
+    if ca_file and (Path(ca_file).name != ca_file or "key" in ca_file.lower()):
+        raise ConfigurationError("CA filename must be a public certificate directly inside /ssl")
+    raw_host = options.get("home_assistant_host")
+    host = _validated_host(raw_host) if raw_host not in (None, "") else None
 
     return Settings(
-        ca_pem=ca_pem,
-        host=_validated_host(options.get("home_assistant_host", "")),
         https_port=_validated_port(
             options.get("home_assistant_https_port", 8123), "HTTPS port"
         ),
         onboarding_port=_validated_port(
             options.get("onboarding_http_port", 8098), "Onboarding port"
         ),
+        ca_pem=ca_pem,
+        ca_file=ca_file,
+        host=host,
         listen_port=_validated_port(os.environ.get("LISTEN_PORT", 8099), "Listen port"),
     )
 
@@ -234,6 +248,61 @@ def load_certificate(path: Path) -> Certificate:
         raise ConfigurationError(f"Cannot read public CA certificate {path}: {exc}") from exc
 
 
+def discover_certificate(settings: Settings, ssl_dir: Path = Path("/ssl")) -> Certificate:
+    """Resolve an explicit public CA or safely discover one in Home Assistant's SSL folder."""
+    if settings.ca_pem:
+        return load_certificate_data(settings.ca_pem)
+
+    ssl_dir = ssl_dir.resolve()
+    if settings.ca_file:
+        candidate = (ssl_dir / settings.ca_file).resolve()
+        if candidate.parent != ssl_dir:
+            raise ConfigurationError("CA certificate override must be directly inside /ssl")
+        return load_certificate(candidate)
+
+    try:
+        paths = sorted(ssl_dir.iterdir())
+    except OSError as exc:
+        raise ConfigurationError(f"Cannot scan Home Assistant's /ssl folder: {exc}") from exc
+
+    candidates: list[tuple[int, Path, Certificate]] = []
+    for path in paths:
+        lowered = path.name.lower()
+        if (
+            not path.is_file()
+            or path.suffix.lower() not in {".crt", ".pem", ".cer"}
+            or "key" in lowered
+            or "priv" in lowered
+        ):
+            continue
+        try:
+            cert = load_certificate(path)
+        except ConfigurationError:
+            continue
+        score = 0
+        if "ca" in lowered or "root" in lowered:
+            score += 2
+        if "homeassistant" in lowered or "home-assistant" in lowered:
+            score += 2
+        candidates.append((score, path, cert))
+
+    if not candidates:
+        raise ConfigurationError(
+            "No self-signed public CA certificate was found in /ssl. "
+            "Place the public CA there or set the optional CA filename override."
+        )
+    candidates.sort(key=lambda item: (-item[0], item[1].name))
+    if len(candidates) > 1 and candidates[0][0] == candidates[1][0]:
+        names = ", ".join(item[1].name for item in candidates)
+        raise ConfigurationError(
+            f"Multiple public CA certificates were found ({names}). "
+            "Set the CA filename override to choose one."
+        )
+    selected = candidates[0]
+    print(f"Automatically selected public CA: /ssl/{selected[1].name}", flush=True)
+    return selected[2]
+
+
 def make_mobileconfig(cert: Certificate, settings: Settings) -> bytes:
     stable_name = cert.fingerprint.replace(":", "")
     root_uuid = str(uuid.uuid5(UUID_NAMESPACE, f"root:{stable_name}")).upper()
@@ -287,14 +356,16 @@ def make_qr_svg(url: str) -> bytes:
     return output.getvalue()
 
 
-def public_info(cert: Certificate, settings: Settings) -> dict[str, object]:
+def public_info(
+    cert: Certificate, settings: Settings, host: str | None = None
+) -> dict[str, object]:
     return {
         "certificate_name": cert.common_name,
         "fingerprint_sha256": cert.fingerprint,
         "not_before": cert.not_before,
         "not_after": cert.not_after,
-        "home_assistant_url": settings.home_assistant_url,
-        "onboarding_url": settings.onboarding_url,
+        "home_assistant_url": settings.home_assistant_url_for(host),
+        "onboarding_url": settings.onboarding_url_for(host),
         "platforms": ["ios", "android", "desktop"],
     }
 
@@ -306,12 +377,10 @@ class OnboardingServer(ThreadingHTTPServer):
         super().__init__(address, OnboardingHandler)
         self.settings = settings
         self.cert = cert
-        self.mobileconfig = make_mobileconfig(cert, settings)
-        self.qr_svg = make_qr_svg(settings.onboarding_url)
 
 
 class OnboardingHandler(BaseHTTPRequestHandler):
-    server_version = "LocalHTTPSOnboarding/0.1"
+    server_version = "LocalHTTPSOnboarding/0.2"
     protocol_version = "HTTP/1.1"
 
     @property
@@ -321,6 +390,26 @@ class OnboardingHandler(BaseHTTPRequestHandler):
     def log_message(self, fmt: str, *args: object) -> None:
         sys.stdout.write(f"request: {self.address_string()} {fmt % args}\n")
         sys.stdout.flush()
+
+    def _request_host(self) -> str:
+        query = parse_qs(urlsplit(self.path).query)
+        candidates = [
+            query.get("host", [""])[0],
+            self.headers.get("X-Forwarded-Host", ""),
+            self.headers.get("Host", ""),
+            self.app.settings.host or "",
+            "homeassistant.local",
+        ]
+        for candidate in candidates:
+            if not candidate:
+                continue
+            try:
+                parsed = urlsplit(f"//{candidate}")
+                if parsed.hostname:
+                    return _validated_host(parsed.hostname)
+            except (ConfigurationError, ValueError):
+                continue
+        return "homeassistant.local"
 
     def _send(
         self,
@@ -378,15 +467,19 @@ class OnboardingHandler(BaseHTTPRequestHandler):
             )
             return
         if path == "/api/info":
-            body = json.dumps(public_info(self.app.cert, self.app.settings)).encode("utf-8")
+            body = json.dumps(
+                public_info(self.app.cert, self.app.settings, self._request_host())
+            ).encode("utf-8")
             self._send(HTTPStatus.OK, body, "application/json", send_body=send_body)
             return
         if path == "/qr.svg":
+            qr_svg = make_qr_svg(
+                self.app.settings.onboarding_url_for(self._request_host())
+            )
             self._send(
                 HTTPStatus.OK,
-                self.app.qr_svg,
+                qr_svg,
                 "image/svg+xml",
-                cache="public, max-age=3600",
                 send_body=send_body,
             )
             return
@@ -409,9 +502,18 @@ class OnboardingHandler(BaseHTTPRequestHandler):
             )
             return
         if path == "/download/home-assistant-local-https.mobileconfig":
+            request_settings = Settings(
+                https_port=self.app.settings.https_port,
+                onboarding_port=self.app.settings.onboarding_port,
+                ca_pem=self.app.settings.ca_pem,
+                ca_file=self.app.settings.ca_file,
+                host=self._request_host(),
+                listen_port=self.app.settings.listen_port,
+            )
+            mobileconfig = make_mobileconfig(self.app.cert, request_settings)
             self._send(
                 HTTPStatus.OK,
-                self.app.mobileconfig,
+                mobileconfig,
                 "application/x-apple-aspen-config",
                 disposition='attachment; filename="home-assistant-local-https.mobileconfig"',
                 send_body=send_body,
@@ -440,14 +542,18 @@ class OnboardingHandler(BaseHTTPRequestHandler):
 def main() -> int:
     try:
         settings = load_settings()
-        cert = load_certificate_data(settings.ca_pem)
+        cert = discover_certificate(settings)
     except ConfigurationError as exc:
         print(f"ERROR: {exc}", file=sys.stderr, flush=True)
         return 2
 
     print(f"Serving public CA: {cert.common_name}", flush=True)
     print(f"SHA-256 fingerprint: {cert.fingerprint}", flush=True)
-    print(f"Direct onboarding page: {settings.onboarding_url}", flush=True)
+    print(
+        "Direct onboarding page: "
+        f"http://<home-assistant-address>:{settings.onboarding_port}/",
+        flush=True,
+    )
     server = OnboardingServer(("0.0.0.0", settings.listen_port), settings, cert)
     try:
         server.serve_forever()

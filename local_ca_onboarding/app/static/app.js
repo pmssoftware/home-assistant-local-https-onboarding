@@ -1,6 +1,7 @@
 "use strict";
 
 const state = { platform: "desktop", info: null };
+const detectedHost = window.location.hostname || "homeassistant.local";
 
 function detectPlatform() {
   const ua = navigator.userAgent || "";
@@ -36,7 +37,10 @@ function selectPlatform(platform) {
   });
   const install = document.getElementById("install-button");
   install.textContent = buttonText(platform);
-  install.href = downloadFor(platform);
+  const download = downloadFor(platform);
+  install.href = platform === "ios"
+    ? `${download}?host=${encodeURIComponent(detectedHost)}`
+    : download;
 }
 
 function formatDate(value) {
@@ -54,7 +58,7 @@ function setConsent(enabled) {
 
 async function start() {
   try {
-    const response = await fetch("api/info", { cache: "no-store" });
+    const response = await fetch(`api/info?host=${encodeURIComponent(detectedHost)}`, { cache: "no-store" });
     if (!response.ok) throw new Error(`Certificate information returned ${response.status}`);
     state.info = await response.json();
     document.getElementById("certificate-name").textContent = state.info.certificate_name;
@@ -63,6 +67,7 @@ async function start() {
     document.getElementById("fingerprint").textContent = state.info.fingerprint_sha256;
     document.getElementById("test-link").href = state.info.home_assistant_url;
     document.getElementById("onboarding-address").textContent = state.info.onboarding_url;
+    document.getElementById("qr-code").src = `qr.svg?host=${encodeURIComponent(detectedHost)}`;
     selectPlatform(detectPlatform());
     document.getElementById("loading").classList.add("hidden");
     document.getElementById("content").classList.remove("hidden");

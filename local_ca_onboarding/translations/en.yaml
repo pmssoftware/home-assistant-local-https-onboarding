@@ -1,10 +1,13 @@
 configuration:
   ca_certificate_pem:
-    name: Public CA certificate
-    description: PEM text of the public CA certificate. Never paste a private key.
+    name: Public CA certificate override
+    description: Optional PEM text override. Normally leave empty because the app discovers the public CA automatically.
+  ca_certificate_file:
+    name: Public CA filename override
+    description: Optional filename inside /ssl. Normally leave empty for automatic discovery.
   home_assistant_host:
-    name: Home Assistant address
-    description: Local IP address or hostname people use to open Home Assistant.
+    name: Home Assistant address override
+    description: Optional IP address or hostname override. Normally the app detects it from the browser.
   home_assistant_https_port:
     name: Home Assistant HTTPS port
     description: HTTPS port used by Home Assistant, normally 8123.
