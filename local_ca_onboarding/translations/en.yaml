@@ -1,0 +1,15 @@
+configuration:
+  ca_certificate_pem:
+    name: Public CA certificate
+    description: PEM text of the public CA certificate. Never paste a private key.
+  home_assistant_host:
+    name: Home Assistant address
+    description: Local IP address or hostname people use to open Home Assistant.
+  home_assistant_https_port:
+    name: Home Assistant HTTPS port
+    description: HTTPS port used by Home Assistant, normally 8123.
+  onboarding_http_port:
+    name: Onboarding page port
+    description: Host port assigned to the direct HTTP onboarding page, normally 8098. Keep this equal to the port mapping on the Network tab.
+network:
+  8099/tcp: Direct HTTP onboarding page
