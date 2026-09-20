@@ -1,6 +1,6 @@
 :root {
   color-scheme: light dark;
-  --bg: #f4f7f9;
+  --bg: #fafafa;
   --surface: #ffffff;
   --text: #15232e;
   --muted: #60717d;
@@ -16,7 +16,7 @@
 
 body {
   margin: 0;
-  background: linear-gradient(160deg, #eef8fc 0%, var(--bg) 36%, #f8fafb 100%);
+  background: var(--bg);
   color: var(--text);
   font: 16px/1.55 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
@@ -93,10 +93,10 @@ footer { padding: 18px 8px; color: var(--muted); text-align: center; font-size: 
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #10181e; --surface: #18232b; --text: #ecf5f8; --muted: #a9bbc5;
-    --line: #31424d; --safe-bg: #123a2c; --shadow: 0 14px 38px rgb(0 0 0 / 24%);
+    --bg: #111111; --surface: #1c1c1c; --text: #e1e1e1; --muted: #9b9b9b;
+    --line: #383838; --safe-bg: #123a2c; --shadow: 0 14px 38px rgb(0 0 0 / 24%);
   }
-  body { background: linear-gradient(160deg, #102832 0%, var(--bg) 36%, #11191f 100%); }
+  body { background: var(--bg); }
   .notice { color: #b8efdc; border-color: #28795d; }
   code { background: #111b21; color: #d7e6ed; }
   .platform.active { background: #123b4e; color: #a9e4ff; }

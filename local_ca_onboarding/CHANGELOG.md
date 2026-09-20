@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.6
+
+- Fix formatted German translations in the safety notice, quick-mode warning,
+  and all device instruction blocks.
+- Stop caching UI scripts and styles so app updates appear without a forced
+  browser refresh.
+- Match Home Assistant's default flat background colors in light and dark mode.
+
 ## 0.2.5
 
 - Add complete German and English onboarding UI translations.

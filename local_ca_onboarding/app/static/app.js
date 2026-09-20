@@ -13,7 +13,7 @@ function applyTranslations() {
     element.textContent = message(element.dataset.i18n, element.textContent);
   });
   document.querySelectorAll("[data-i18n-html]").forEach((element) => {
-    element.innerHTML = message(element.dataset.i18n, element.innerHTML);
+    element.innerHTML = message(element.dataset.i18nHtml, element.innerHTML);
   });
   document.title = message("pageTitle", document.title);
   if (state.info) {

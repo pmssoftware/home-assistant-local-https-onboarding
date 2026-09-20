@@ -497,7 +497,6 @@ class OnboardingHandler(BaseHTTPRequestHandler):
                 HTTPStatus.OK,
                 body,
                 "text/css; charset=utf-8",
-                cache="public, max-age=3600",
                 send_body=send_body,
             )
             return
@@ -507,7 +506,6 @@ class OnboardingHandler(BaseHTTPRequestHandler):
                 HTTPStatus.OK,
                 body,
                 "text/javascript; charset=utf-8",
-                cache="public, max-age=3600",
                 send_body=send_body,
             )
             return
@@ -524,7 +522,6 @@ class OnboardingHandler(BaseHTTPRequestHandler):
                 HTTPStatus.OK,
                 locale_path.read_bytes(),
                 "application/json; charset=utf-8",
-                cache="public, max-age=3600",
                 send_body=send_body,
             )
             return

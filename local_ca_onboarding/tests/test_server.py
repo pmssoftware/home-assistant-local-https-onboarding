@@ -153,6 +153,12 @@ class HttpTests(CertificateTests):
         self.assertIn(b'id="quick-open-link"', body)
         self.assertIn(b"does not install the CA", body)
 
+    def test_translation_script_uses_formatted_message_key(self):
+        response, body = self.fetch("assets/app.js")
+        self.assertEqual(response.headers.get_content_type(), "text/javascript")
+        self.assertIn(b"element.dataset.i18nHtml", body)
+        self.assertEqual(response.headers["Cache-Control"], "no-store")
+
     def test_registered_locales_are_complete(self):
         response, body = self.fetch("assets/locales/languages.json")
         self.assertEqual(response.headers.get_content_type(), "application/json")
