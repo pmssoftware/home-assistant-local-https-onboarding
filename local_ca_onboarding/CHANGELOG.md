@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.1
+
+- Add explicit empty defaults for every automatic option so Supervisor never
+  reports a missing required option on an existing installation.
+
 ## 0.2.0
 
 - Remove all required configuration fields for first start.

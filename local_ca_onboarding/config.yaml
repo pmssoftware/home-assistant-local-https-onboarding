@@ -1,5 +1,5 @@
 name: Local HTTPS Onboarding
-version: "0.2.0"
+version: "0.2.1"
 slug: local_ca_onboarding
 description: Safely guide local devices through trusting your Home Assistant CA
 url: "https://github.com/pmssoftware/home-assistant-local-https-onboarding/tree/main/local_ca_onboarding"
@@ -23,11 +23,14 @@ map:
   - type: ssl
     read_only: true
 options:
+  ca_certificate_pem: ""
+  ca_certificate_file: ""
+  home_assistant_host: ""
   home_assistant_https_port: 8123
   onboarding_http_port: 8098
 schema:
-  ca_certificate_pem: str?
-  ca_certificate_file: str?
-  home_assistant_host: str?
+  ca_certificate_pem: str
+  ca_certificate_file: str
+  home_assistant_host: str
   home_assistant_https_port: port
   onboarding_http_port: port
