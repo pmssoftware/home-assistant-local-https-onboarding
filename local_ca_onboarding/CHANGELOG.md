@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.2
+
+- Restore vertical touch scrolling in mobile browsers and Home Assistant app
+  webviews.
+- Respect iPhone and iPad safe-area insets at the top and bottom of the page.
+
 ## 0.3.1
 
 - Add a guarded action to restore the newest backed-up server certificate.

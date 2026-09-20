@@ -228,6 +228,14 @@ class HttpTests(CertificateTests):
         self.assertIn(b"element.dataset.i18nHtml", body)
         self.assertEqual(response.headers["Cache-Control"], "no-store")
 
+    def test_styles_allow_mobile_touch_scrolling(self):
+        response, body = self.fetch("assets/styles.css")
+        self.assertEqual(response.headers.get_content_type(), "text/css")
+        self.assertIn(b"overflow-y: auto", body)
+        self.assertIn(b"-webkit-overflow-scrolling: touch", body)
+        self.assertIn(b"touch-action: pan-y pinch-zoom", body)
+        self.assertIn(b"env(safe-area-inset-bottom)", body)
+
     def test_registered_locales_are_complete(self):
         response, body = self.fetch("assets/locales/languages.json")
         self.assertEqual(response.headers.get_content_type(), "application/json")
