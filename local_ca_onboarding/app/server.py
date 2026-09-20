@@ -10,6 +10,7 @@ import json
 import os
 import plistlib
 import re
+import shutil
 import ssl
 import subprocess
 import sys
@@ -523,7 +524,7 @@ def regenerate_server_certificate(
             "The generated CA certificate and private key are required for regeneration"
         )
     san, common_name = certificate_identity(settings)
-    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
     backup = ssl_dir / "local-https-backups" / stamp
     with GENERATION_LOCK, tempfile.TemporaryDirectory(
         prefix=".local-https-", dir=ssl_dir
@@ -537,6 +538,60 @@ def regenerate_server_certificate(
             os.replace(generated[key], target)
     print(f"Regenerated Home Assistant server certificate for {san}", flush=True)
     return f"Server certificate generated for {common_name}. Restart Home Assistant to use it."
+
+
+def available_certificate_backups(ssl_dir: Path = Path("/ssl")) -> list[Path]:
+    root = ssl_dir.resolve() / "local-https-backups"
+    if not root.is_dir():
+        return []
+    required = [GENERATED_FILES[key] for key in ("server_cert", "server_key", "fullchain")]
+    try:
+        candidates = [
+            path
+            for path in root.iterdir()
+            if path.is_dir() and all((path / name).is_file() for name in required)
+        ]
+    except OSError:
+        return []
+    return sorted(candidates, key=lambda path: path.name, reverse=True)
+
+
+def restore_latest_server_certificate(
+    ssl_dir: Path = Path("/ssl"),
+) -> str:
+    """Validate and restore the newest complete server-certificate backup."""
+    ssl_dir = ssl_dir.resolve()
+    backups = available_certificate_backups(ssl_dir)
+    if not backups:
+        raise ConfigurationError("No complete server-certificate backup is available")
+    selected = backups[0]
+    ca_cert = ssl_dir / GENERATED_FILES["ca_cert"]
+    backup_cert = selected / GENERATED_FILES["server_cert"]
+    backup_key = selected / GENERATED_FILES["server_key"]
+    if not ca_cert.is_file():
+        raise ConfigurationError("The generated CA certificate is required for restoration")
+    _openssl("verify", "-CAfile", str(ca_cert), str(backup_cert))
+    cert_public = _openssl("x509", "-in", str(backup_cert), "-pubkey", "-noout")
+    key_public = _openssl("pkey", "-in", str(backup_key), "-pubout")
+    if cert_public != key_public:
+        raise ConfigurationError("The backup certificate and private key do not match")
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
+    rollback = ssl_dir / "local-https-restore-rollbacks" / stamp
+    with GENERATION_LOCK, tempfile.TemporaryDirectory(
+        prefix=".local-https-restore-", dir=ssl_dir
+    ) as temp:
+        work = Path(temp)
+        for key in ("server_cert", "server_key", "fullchain"):
+            shutil.copy2(selected / GENERATED_FILES[key], work / GENERATED_FILES[key])
+        os.chmod(work / GENERATED_FILES["server_key"], 0o600)
+        rollback.mkdir(parents=True, exist_ok=False)
+        for key in ("server_cert", "server_key", "fullchain"):
+            target = ssl_dir / GENERATED_FILES[key]
+            if target.exists():
+                os.replace(target, rollback / target.name)
+            os.replace(work / GENERATED_FILES[key], target)
+    print(f"Restored server certificate backup {selected.name}", flush=True)
+    return f"Restored backup {selected.name}. Restart Home Assistant to use it."
 
 
 def discover_or_generate_certificate(
@@ -615,6 +670,7 @@ def public_info(
         "onboarding_url": settings.onboarding_url_for(host),
         "platforms": ["ios", "android", "desktop"],
         "allow_certificate_regeneration": settings.allow_regeneration,
+        "certificate_backup_available": bool(available_certificate_backups()),
     }
 
 
@@ -822,6 +878,41 @@ class OnboardingHandler(BaseHTTPRequestHandler):
                     allow_regeneration=self.app.settings.allow_regeneration,
                 )
                 result = regenerate_server_certificate(request_settings)
+            except (ValueError, json.JSONDecodeError):
+                self._send(HTTPStatus.BAD_REQUEST, b'{"error":"Explicit confirmation required"}', "application/json")
+                return
+            except ConfigurationError as exc:
+                self._send(
+                    HTTPStatus.CONFLICT,
+                    json.dumps({"error": str(exc)}).encode(),
+                    "application/json",
+                )
+                return
+            self._send(
+                HTTPStatus.OK,
+                json.dumps({"message": result}).encode(),
+                "application/json",
+            )
+            return
+        if path == "/api/restore-server-certificate":
+            if not self.app.settings.allow_regeneration:
+                self._send(
+                    HTTPStatus.FORBIDDEN,
+                    json.dumps({"error": "Certificate restoration is disabled"}).encode(),
+                    "application/json",
+                )
+                return
+            if self.headers.get_content_type() != "application/json":
+                self._send(HTTPStatus.UNSUPPORTED_MEDIA_TYPE, b'{"error":"JSON required"}', "application/json")
+                return
+            try:
+                length = int(self.headers.get("Content-Length", "0"))
+                if not 0 < length <= 1024:
+                    raise ValueError
+                payload = json.loads(self.rfile.read(length))
+                if payload.get("confirmation") != "RESTORE":
+                    raise ValueError
+                result = restore_latest_server_certificate()
             except (ValueError, json.JSONDecodeError):
                 self._send(HTTPStatus.BAD_REQUEST, b'{"error":"Explicit confirmation required"}', "application/json")
                 return

@@ -126,6 +126,10 @@ async function start() {
       "hidden",
       !state.info.allow_certificate_regeneration,
     );
+    document.getElementById("restore-button").classList.toggle(
+      "hidden",
+      !state.info.certificate_backup_available,
+    );
     selectPlatform(detectPlatform());
     document.getElementById("loading").classList.add("hidden");
     document.getElementById("content").classList.remove("hidden");
@@ -159,8 +163,39 @@ document.getElementById("language-select").addEventListener("change", async (eve
 
 document.getElementById("regenerate-consent").addEventListener("change", (event) => {
   const button = document.getElementById("regenerate-button");
+  const restore = document.getElementById("restore-button");
   button.disabled = !event.target.checked;
   button.classList.toggle("disabled", !event.target.checked);
+  restore.disabled = !event.target.checked;
+  restore.classList.toggle("disabled", !event.target.checked);
+});
+
+document.getElementById("restore-button").addEventListener("click", async () => {
+  const generate = document.getElementById("regenerate-button");
+  const restore = document.getElementById("restore-button");
+  const status = document.getElementById("regenerate-status");
+  generate.disabled = true;
+  restore.disabled = true;
+  generate.classList.add("disabled");
+  restore.classList.add("disabled");
+  status.textContent = message("restoreWorking", "Restoring…");
+  status.classList.remove("hidden");
+  try {
+    const response = await fetch("api/restore-server-certificate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ confirmation: "RESTORE" }),
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || `HTTP ${response.status}`);
+    status.textContent = result.message;
+  } catch (error) {
+    status.textContent = `${message("restoreError", "Restoration failed:")} ${error.message}`;
+    generate.disabled = false;
+    restore.disabled = false;
+    generate.classList.remove("disabled");
+    restore.classList.remove("disabled");
+  }
 });
 
 document.getElementById("regenerate-button").addEventListener("click", async () => {
@@ -179,6 +214,10 @@ document.getElementById("regenerate-button").addEventListener("click", async () 
     const result = await response.json();
     if (!response.ok) throw new Error(result.error || `HTTP ${response.status}`);
     status.textContent = result.message;
+    const restore = document.getElementById("restore-button");
+    restore.classList.remove("hidden");
+    restore.disabled = false;
+    restore.classList.remove("disabled");
   } catch (error) {
     status.textContent = `${message("regenerateError", "Generation failed:")} ${error.message}`;
     button.disabled = false;

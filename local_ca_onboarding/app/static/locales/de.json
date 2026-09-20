@@ -39,8 +39,11 @@
   "footer": "Halte den Onboarding-Port auf dein lokales Netzwerk beschränkt. Nach Abschluss der Einrichtung kannst du diese App beenden.",
   "regenerateTitle": "Neues Serverzertifikat erzeugen",
   "regenerateDescription": "Die vorhandene vertrauenswürdige CA bleibt erhalten. Das aktuelle Serverzertifikat und der Schlüssel werden gesichert und ein neues Zertifikat für diese Home-Assistant-Adresse wird erzeugt.",
-  "regenerateConsent": "Ich verstehe, dass Home Assistant nach der Erzeugung neu gestartet werden muss.",
+  "regenerateConsent": "Ich verstehe, dass Home Assistant nach der Erzeugung oder Wiederherstellung neu gestartet werden muss.",
   "regenerateButton": "Neues Serverzertifikat erzeugen",
   "regenerateWorking": "Wird erzeugt…",
-  "regenerateError": "Erzeugung fehlgeschlagen:"
+  "regenerateError": "Erzeugung fehlgeschlagen:",
+  "restoreButton": "Vorheriges Serverzertifikat wiederherstellen",
+  "restoreWorking": "Wird wiederhergestellt…",
+  "restoreError": "Wiederherstellung fehlgeschlagen:"
 }

@@ -77,7 +77,9 @@ locale files are served by the app.
 Manual server-certificate regeneration is available as a guarded setup-page
 action when explicitly enabled in the app configuration. It keeps the root CA,
 so already-onboarded devices remain trusted, and moves replaced server files to
-`/ssl/local-https-backups/`.
+`/ssl/local-https-backups/`. The same guarded panel can restore the newest valid
+backup; files replaced by restoration are retained under
+`/ssl/local-https-restore-rollbacks/`.
 
 See [the full documentation](local_ca_onboarding/DOCS.md) for iOS, Android,
 desktop, VPN, removal, and troubleshooting instructions.

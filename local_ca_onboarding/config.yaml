@@ -1,5 +1,5 @@
 name: Local HTTPS Onboarding
-version: "0.3.0"
+version: "0.3.1"
 slug: local_ca_onboarding
 description: Safely guide local devices through trusting your Home Assistant CA
 url: "https://github.com/pmssoftware/home-assistant-local-https-onboarding/tree/main/local_ca_onboarding"

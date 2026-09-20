@@ -139,9 +139,10 @@
           <div class="regeneration-actions">
             <label class="consent">
               <input id="regenerate-consent" type="checkbox">
-              <span data-i18n="regenerateConsent">I understand that Home Assistant must be restarted after generation.</span>
+              <span data-i18n="regenerateConsent">I understand that Home Assistant must be restarted after generation or restoration.</span>
             </label>
             <button id="regenerate-button" class="primary button-reset disabled" disabled data-i18n="regenerateButton">Generate new server certificate</button>
+            <button id="restore-button" class="secondary button-reset disabled hidden" disabled data-i18n="restoreButton">Restore previous server certificate</button>
             <p class="status hidden" id="regenerate-status" role="status"></p>
           </div>
         </section>

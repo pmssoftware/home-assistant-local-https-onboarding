@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.1
+
+- Add a guarded action to restore the newest backed-up server certificate.
+- Verify the backup against the existing CA and confirm its private key matches
+  before replacing active files.
+- Preserve the files replaced during restoration in a separate rollback folder.
+- Add matching shield-and-lock artwork for the Home Assistant Apps window.
+- Present the built-in documentation in English first and German second.
+
 ## 0.3.0
 
 - Generate a private root CA and Home Assistant server certificate automatically

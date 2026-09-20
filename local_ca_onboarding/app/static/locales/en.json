@@ -39,8 +39,11 @@
   "footer": "Keep the onboarding port private to your local network. You can stop this app when setup is finished.",
   "regenerateTitle": "Generate a new server certificate",
   "regenerateDescription": "This keeps the existing trusted CA, backs up the current server certificate and key, and creates a new certificate for this Home Assistant address.",
-  "regenerateConsent": "I understand that Home Assistant must be restarted after generation.",
+  "regenerateConsent": "I understand that Home Assistant must be restarted after generation or restoration.",
   "regenerateButton": "Generate new server certificate",
   "regenerateWorking": "Generating…",
-  "regenerateError": "Generation failed:"
+  "regenerateError": "Generation failed:",
+  "restoreButton": "Restore previous server certificate",
+  "restoreWorking": "Restoring…",
+  "restoreError": "Restoration failed:"
 }

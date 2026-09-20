@@ -130,9 +130,8 @@ class SettingsTests(unittest.TestCase):
             self.assertEqual(
                 (ssl_dir / "homeassistant-local-ca.crt").read_bytes(), ca_before
             )
-            self.assertNotEqual(
-                (ssl_dir / "homeassistant-ip.crt").read_bytes(), cert_before
-            )
+            cert_after = (ssl_dir / "homeassistant-ip.crt").read_bytes()
+            self.assertNotEqual(cert_after, cert_before)
             backups = list((ssl_dir / "local-https-backups").glob("*"))
             self.assertEqual(len(backups), 1)
             self.assertEqual(
@@ -143,6 +142,16 @@ class SettingsTests(unittest.TestCase):
                 "-CAfile",
                 str(ssl_dir / "homeassistant-local-ca.crt"),
                 str(ssl_dir / "homeassistant-ip.crt"),
+            )
+            restore_result = server.restore_latest_server_certificate(ssl_dir)
+            self.assertIn(backups[0].name, restore_result)
+            self.assertEqual(
+                (ssl_dir / "homeassistant-ip.crt").read_bytes(), cert_before
+            )
+            rollbacks = list((ssl_dir / "local-https-restore-rollbacks").glob("*"))
+            self.assertEqual(len(rollbacks), 1)
+            self.assertEqual(
+                (rollbacks[0] / "homeassistant-ip.crt").read_bytes(), cert_after
             )
 
 
