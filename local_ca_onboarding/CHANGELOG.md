@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.3
+
+- Install the OpenSSL runtime required for certificate discovery and validation.
+- Add a CI smoke test that starts the real container with a mounted CA and checks
+  its health endpoint.
+
 ## 0.2.2
 
 - Inspect every certificate in full-chain PEM files instead of only the first.

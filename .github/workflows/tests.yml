@@ -25,3 +25,22 @@ jobs:
           --build-arg BUILD_FROM=ghcr.io/home-assistant/amd64-base:3.23
           --tag local-https-onboarding:test
           ./local_ca_onboarding
+      - name: Smoke-test the real app container
+        run: |
+          mkdir -p /tmp/onboarding-test-data /tmp/onboarding-test-ssl
+          cp local_ca_onboarding/tests/fixtures/test-ca.crt /tmp/onboarding-test-ssl/homeassistant-local-ca.crt
+          printf '%s\n' '{"ca_certificate_pem":"","ca_certificate_file":"","home_assistant_host":"","home_assistant_https_port":8123,"onboarding_http_port":8098}' > /tmp/onboarding-test-data/options.json
+          docker run --detach --name local-https-onboarding-test \
+            --publish 18099:8099 \
+            --volume /tmp/onboarding-test-data:/data \
+            --volume /tmp/onboarding-test-ssl:/ssl:ro \
+            local-https-onboarding:test
+          for attempt in 1 2 3 4 5 6 7 8 9 10; do
+            if curl --fail --silent http://127.0.0.1:18099/health; then
+              break
+            fi
+            sleep 1
+          done
+          curl --fail --show-error http://127.0.0.1:18099/api/info
+          docker logs local-https-onboarding-test
+          docker rm --force local-https-onboarding-test

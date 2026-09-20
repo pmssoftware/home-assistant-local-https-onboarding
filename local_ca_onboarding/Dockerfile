@@ -1,7 +1,7 @@
 ARG BUILD_FROM
 FROM ${BUILD_FROM}
 
-RUN apk add --no-cache python3 py3-pip \
+RUN apk add --no-cache openssl python3 py3-pip \
     && python3 -m pip install --no-cache-dir --break-system-packages "qrcode==8.2"
 
 COPY app /app
