@@ -75,9 +75,12 @@ class SettingsTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             ssl_dir = Path(temp)
             (ssl_dir / "homeassistant-local-ca.crt").write_bytes(FIXTURE_CERT.read_bytes())
+            fullchain = ssl_dir / "homeassistant-fullchain.pem"
+            fullchain.write_bytes(FIXTURE_CERT.read_bytes() + FIXTURE_CERT.read_bytes())
             (ssl_dir / "homeassistant-private.key").write_text(
                 "-----BEGIN PRIVATE KEY-----\nnot-a-real-key\n", encoding="ascii"
             )
+            self.assertEqual(len(server.load_ca_certificates(fullchain)), 2)
             settings = server.Settings(https_port=8123, onboarding_port=8098)
             cert = server.discover_certificate(settings, ssl_dir)
             self.assertEqual(cert.common_name, "Test Local HTTPS CA")

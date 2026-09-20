@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.2
+
+- Inspect every certificate in full-chain PEM files instead of only the first.
+- Deduplicate the same root CA when it appears both separately and in a chain.
+- Log scanned certificate filenames and rejection reasons for easier diagnosis.
+
 ## 0.2.1
 
 - Add explicit empty defaults for every automatic option so Supervisor never

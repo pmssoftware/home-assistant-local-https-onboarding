@@ -248,6 +248,37 @@ def load_certificate(path: Path) -> Certificate:
         raise ConfigurationError(f"Cannot read public CA certificate {path}: {exc}") from exc
 
 
+def load_ca_certificates(path: Path) -> list[Certificate]:
+    """Return every valid root CA found in a PEM file or certificate file."""
+    try:
+        raw = path.read_bytes()
+    except OSError as exc:
+        raise ConfigurationError(f"Cannot read public CA certificate {path}: {exc}") from exc
+    if len(raw) > MAX_CERT_SIZE:
+        raise ConfigurationError("Certificate file is unexpectedly large")
+    if b"PRIVATE KEY" in raw.upper():
+        raise ConfigurationError("File contains private-key data")
+
+    blocks = re.findall(
+        rb"-----BEGIN CERTIFICATE-----.*?-----END CERTIFICATE-----",
+        raw,
+        flags=re.DOTALL,
+    )
+    if not blocks:
+        blocks = [raw]
+    certificates: list[Certificate] = []
+    errors: list[str] = []
+    for block in blocks:
+        try:
+            certificates.append(load_certificate_data(block + b"\n"))
+        except ConfigurationError as exc:
+            errors.append(str(exc))
+    if not certificates:
+        detail = errors[0] if errors else "no certificates found"
+        raise ConfigurationError(detail)
+    return certificates
+
+
 def discover_certificate(settings: Settings, ssl_dir: Path = Path("/ssl")) -> Certificate:
     """Resolve an explicit public CA or safely discover one in Home Assistant's SSL folder."""
     if settings.ca_pem:
@@ -258,14 +289,20 @@ def discover_certificate(settings: Settings, ssl_dir: Path = Path("/ssl")) -> Ce
         candidate = (ssl_dir / settings.ca_file).resolve()
         if candidate.parent != ssl_dir:
             raise ConfigurationError("CA certificate override must be directly inside /ssl")
-        return load_certificate(candidate)
+        certificates = load_ca_certificates(candidate)
+        if len(certificates) > 1:
+            raise ConfigurationError(
+                "The selected file contains multiple root CAs; choose a file with one root CA"
+            )
+        return certificates[0]
 
     try:
         paths = sorted(ssl_dir.iterdir())
     except OSError as exc:
         raise ConfigurationError(f"Cannot scan Home Assistant's /ssl folder: {exc}") from exc
 
-    candidates: list[tuple[int, Path, Certificate]] = []
+    candidates: dict[str, tuple[int, Path, Certificate]] = {}
+    inspected: list[str] = []
     for path in paths:
         lowered = path.name.lower()
         if (
@@ -276,29 +313,37 @@ def discover_certificate(settings: Settings, ssl_dir: Path = Path("/ssl")) -> Ce
         ):
             continue
         try:
-            cert = load_certificate(path)
-        except ConfigurationError:
+            certificates = load_ca_certificates(path)
+        except ConfigurationError as exc:
+            inspected.append(f"{path.name}: {exc}")
             continue
         score = 0
         if "ca" in lowered or "root" in lowered:
             score += 2
         if "homeassistant" in lowered or "home-assistant" in lowered:
             score += 2
-        candidates.append((score, path, cert))
+        for cert in certificates:
+            inspected.append(f"{path.name}: root CA {cert.common_name}")
+            existing = candidates.get(cert.fingerprint)
+            item = (score, path, cert)
+            if existing is None or score > existing[0]:
+                candidates[cert.fingerprint] = item
 
     if not candidates:
+        for result in inspected:
+            print(f"CA discovery: {result}", file=sys.stderr, flush=True)
         raise ConfigurationError(
             "No self-signed public CA certificate was found in /ssl. "
             "Place the public CA there or set the optional CA filename override."
         )
-    candidates.sort(key=lambda item: (-item[0], item[1].name))
-    if len(candidates) > 1 and candidates[0][0] == candidates[1][0]:
-        names = ", ".join(item[1].name for item in candidates)
+    ranked = sorted(candidates.values(), key=lambda item: (-item[0], item[1].name))
+    if len(ranked) > 1 and ranked[0][0] == ranked[1][0]:
+        names = ", ".join(item[1].name for item in ranked)
         raise ConfigurationError(
             f"Multiple public CA certificates were found ({names}). "
             "Set the CA filename override to choose one."
         )
-    selected = candidates[0]
+    selected = ranked[0]
     print(f"Automatically selected public CA: /ssl/{selected[1].name}", flush=True)
     return selected[2]
 
