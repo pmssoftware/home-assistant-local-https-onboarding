@@ -17,4 +17,11 @@ jobs:
         with:
           python-version: "3.13"
       - run: pip install -r requirements-dev.txt
-      - run: python -m unittest discover -s local_ca_onboarding/tests -v
+      - name: Run unit and endpoint tests
+        run: python -m unittest discover -s local_ca_onboarding/tests -v
+      - name: Build the amd64 Home Assistant app image
+        run: >-
+          docker build
+          --build-arg BUILD_FROM=ghcr.io/home-assistant/amd64-base:3.23
+          --tag local-https-onboarding:test
+          ./local_ca_onboarding
