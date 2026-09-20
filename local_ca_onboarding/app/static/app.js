@@ -56,6 +56,11 @@ function setConsent(enabled) {
   install.tabIndex = enabled ? 0 : -1;
 }
 
+function setQuickMode(enabled) {
+  document.getElementById("quick-flow").classList.toggle("hidden", !enabled);
+  document.getElementById("certificate-flow").classList.toggle("hidden", enabled);
+}
+
 async function start() {
   try {
     const response = await fetch(`api/info?host=${encodeURIComponent(detectedHost)}`, { cache: "no-store" });
@@ -66,6 +71,7 @@ async function start() {
     document.getElementById("ha-address").textContent = state.info.home_assistant_url;
     document.getElementById("fingerprint").textContent = state.info.fingerprint_sha256;
     document.getElementById("test-link").href = state.info.home_assistant_url;
+    document.getElementById("quick-open-link").href = state.info.home_assistant_url;
     document.getElementById("onboarding-address").textContent = state.info.onboarding_url;
     document.getElementById("qr-code").src = `qr.svg?host=${encodeURIComponent(detectedHost)}`;
     selectPlatform(detectPlatform());
@@ -86,9 +92,14 @@ document.getElementById("consent").addEventListener("change", (event) => {
   setConsent(event.target.checked);
 });
 
+document.getElementById("quick-mode").addEventListener("change", (event) => {
+  setQuickMode(event.target.checked);
+});
+
 document.getElementById("install-button").addEventListener("click", (event) => {
   if (event.currentTarget.getAttribute("aria-disabled") === "true") event.preventDefault();
 });
 
 setConsent(false);
+setQuickMode(false);
 start();

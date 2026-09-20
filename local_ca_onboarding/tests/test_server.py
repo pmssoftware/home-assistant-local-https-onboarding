@@ -146,6 +146,13 @@ class HttpTests(CertificateTests):
         self.assertEqual(info["certificate_name"], "Test Local HTTPS CA")
         self.assertIn("default-src 'self'", response.headers["Content-Security-Policy"])
 
+    def test_page_offers_browser_only_quick_mode(self):
+        response, body = self.fetch("")
+        self.assertEqual(response.headers.get_content_type(), "text/html")
+        self.assertIn(b'id="quick-mode"', body)
+        self.assertIn(b'id="quick-open-link"', body)
+        self.assertIn(b"does not install the CA", body)
+
     def test_android_download_is_der_public_certificate(self):
         response, body = self.fetch("download/home-assistant-local-ca.cer")
         self.assertEqual(response.headers.get_content_type(), "application/pkix-cert")

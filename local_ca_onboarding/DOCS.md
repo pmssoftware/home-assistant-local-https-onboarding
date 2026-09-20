@@ -30,6 +30,16 @@ the HTTPS certificate it needs to download.
 The onboarding page exposes only the public CA certificate and its metadata. It
 does not require or collect a Home Assistant password.
 
+### Browser-only quick mode
+
+Turn on **Use browser-only quick mode** to skip certificate installation and
+open Home Assistant HTTPS immediately. The browser should show its normal
+certificate warning, where the user can explicitly continue or add an exception.
+An exception is normally limited to that browser profile. It may retain a warning
+indicator, does not configure the operating system or Home Assistant mobile app,
+and must be repeated for other browsers and devices. Use the normal CA installation
+flow when full trust is required.
+
 ## VPN-only remote access
 
 If the same private address is used both at home and while connected through a

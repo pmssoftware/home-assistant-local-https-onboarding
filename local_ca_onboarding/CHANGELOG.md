@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.4
+
+- Add an optional browser-only quick mode that skips CA installation and opens
+  Home Assistant directly so the browser can offer its own certificate exception.
+- Clearly explain that an exception is limited to that browser and is not the
+  same as installing and trusting the CA.
+
 ## 0.2.3
 
 - Install the OpenSSL runtime required for certificate discovery and validation.

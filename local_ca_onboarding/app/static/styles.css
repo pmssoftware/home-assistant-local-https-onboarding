@@ -36,6 +36,17 @@ h1 { margin: 0; font-size: clamp(2rem, 6vw, 3rem); line-height: 1.08; letter-spa
 .notice strong { display: block; }
 .card { position: relative; margin: 16px 0; padding: 28px; border: 1px solid var(--line); border-radius: 18px; background: var(--surface); box-shadow: var(--shadow); }
 .card h2 { margin: 0 0 16px; font-size: 1.25rem; letter-spacing: -.01em; }
+.mode-card { display: flex; align-items: center; justify-content: space-between; gap: 24px; }
+.mode-card h2 { margin-bottom: 4px; }
+.mode-card p { margin: 0; color: var(--muted); }
+.switch { display: flex; align-items: center; gap: 10px; flex: 0 0 auto; cursor: pointer; font-weight: 750; }
+.switch input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.slider { position: relative; width: 50px; height: 28px; border-radius: 999px; background: #81909a; transition: background .15s ease; }
+.slider::after { content: ""; position: absolute; top: 4px; left: 4px; width: 20px; height: 20px; border-radius: 50%; background: white; box-shadow: 0 1px 4px rgb(0 0 0 / 25%); transition: transform .15s ease; }
+.switch input:checked + .slider { background: var(--brand-dark); }
+.switch input:checked + .slider::after { transform: translateX(22px); }
+.switch input:focus-visible + .slider { outline: 3px solid color-mix(in srgb, var(--brand) 45%, transparent); outline-offset: 3px; }
+.warning-card { border-color: #e2b557; background: #fffaf0; }
 .step { position: absolute; top: 24px; right: 24px; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: #e9f6fc; color: var(--brand-dark); font-weight: 800; }
 .facts { margin: 0; }
 .facts div { display: grid; grid-template-columns: 132px 1fr; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--line); }
@@ -74,6 +85,7 @@ footer { padding: 18px 8px; color: var(--muted); text-align: center; font-size: 
   .platforms { grid-template-columns: 1fr; }
   .facts div { grid-template-columns: 1fr; gap: 0; }
   .qr-card { flex-direction: column; text-align: center; }
+  .mode-card { align-items: flex-start; flex-direction: column; }
 }
 
 @media (prefers-color-scheme: dark) {
@@ -86,6 +98,7 @@ footer { padding: 18px 8px; color: var(--muted); text-align: center; font-size: 
   code { background: #111b21; color: #d7e6ed; }
   .platform.active { background: #123b4e; color: #a9e4ff; }
   .secondary { color: #8edcff; border-color: #5bc5f4; }
+  .warning-card { background: #382d16; border-color: #80652d; }
 }
 
 @media (prefers-reduced-motion: reduce) {

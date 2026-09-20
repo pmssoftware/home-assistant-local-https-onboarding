@@ -52,6 +52,12 @@ onboarding address shown there. The temporary HTTP page solves the certificate
 bootstrap problem and exposes only the public CA certificate. Do not forward the
 onboarding port to the public internet; stop the app when onboarding is finished.
 
+For browsers where a per-site certificate exception is sufficient, the page also
+offers an optional **browser-only quick mode**. It skips CA installation and opens
+Home Assistant directly so the browser can offer its own warning/exception flow.
+This shortcut is browser-specific and does not establish system-wide trust or
+configure the Home Assistant mobile app.
+
 See [the full documentation](local_ca_onboarding/DOCS.md) for iOS, Android,
 desktop, VPN, removal, and troubleshooting instructions.
 

@@ -33,6 +33,26 @@
       </section>
 
       <div id="content" class="hidden">
+        <section class="card mode-card">
+          <div>
+            <h2>Use browser-only quick mode</h2>
+            <p>Skip certificate installation and let this browser remember an exception instead.</p>
+          </div>
+          <label class="switch">
+            <input id="quick-mode" type="checkbox">
+            <span class="slider" aria-hidden="true"></span>
+            <span class="switch-label">Quick mode</span>
+          </label>
+        </section>
+
+        <section class="card warning-card hidden" id="quick-flow">
+          <h2>Open Home Assistant directly</h2>
+          <p>Your browser will probably show a certificate warning. Choose its option to continue or accept the risk. The browser may remember that choice.</p>
+          <a id="quick-open-link" class="primary" target="_blank" rel="noopener noreferrer">Open Home Assistant HTTPS</a>
+          <p class="hint"><strong>This does not install the CA.</strong> It applies only to this browser profile, may still show a warning indicator, and does not make the Home Assistant mobile app trust the certificate. Repeat it separately on every browser or device.</p>
+        </section>
+
+        <div id="certificate-flow">
         <section class="card">
           <span class="step">1</span>
           <h2>Check what you are trusting</h2>
@@ -99,6 +119,7 @@
           <a id="test-link" class="secondary" target="_blank" rel="noopener noreferrer">Open Home Assistant securely</a>
           <p class="hint">A lock or “connection secure” message means setup worked. If a warning remains, recheck the Full Trust or CA certificate step.</p>
         </section>
+        </div>
 
         <section class="card qr-card">
           <div>
